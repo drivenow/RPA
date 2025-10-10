@@ -1,0 +1,20 @@
+# 小红书爬虫项目依赖
+# 核心依赖
+playwright>=1.40.0
+mitmproxy>=10.0.0
+loguru>=0.7.0
+pyyaml>=6.0
+
+# 数据库依赖
+pymysql>=1.1.0
+sqlalchemy>=2.0.0
+
+# 数据处理依赖
+pandas>=2.0.0
+requests>=2.31.0
+
+
+# 开发依赖
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0

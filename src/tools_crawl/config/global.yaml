@@ -1,0 +1,50 @@
+# 全局配置文件
+system:
+  # 日志配置
+  logging:
+    level: "INFO"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: "logs/crawler.log"
+    max_size: "10MB"
+    backup_count: 5
+  
+  # 代理配置
+  proxy:
+    enabled: true
+    host: "127.0.0.1"
+    port: 8080
+    ssl_insecure: true
+  
+  # 浏览器配置
+  browser:
+    headless: false
+    proxy_port: 8080
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    viewport:
+      width: 1920
+      height: 1080
+    wait_timeout: 30000
+    # SSL/TLS证书配置
+    ssl:
+      ignore_certificate_errors: true
+      ignore_ssl_errors: true
+      allow_insecure_content: true
+      reduce_security_for_testing: true
+      
+  cookies:
+    file: "cookies/www.xiaohongshu.com_cookies.json"
+
+# 数据提取通用配置
+extraction:
+  # JSON提取配置
+  json_patterns:
+    - 'window\.__INITIAL_STATE__\s*=\s*({.+?});'
+    - 'window\.__NUXT__\s*=\s*({.+?});'
+    - 'window\.__APP_DATA__\s*=\s*({.+?});'
+    - '__INITIAL_SSR_STATE__\s*=\s*({.+?});'
+  
+  # 数据清理配置
+  data_cleaning:
+    remove_html_tags: true
+    normalize_whitespace: true
+    max_text_length: 10000

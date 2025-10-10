@@ -1,0 +1,112 @@
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# IDE / editor directories
+.idea/
+.vscode/
+.trae/
+*.iml
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pytype/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+.env.*
+ENV/
+env.bak/
+venv.bak/
+
+# Packaging / build artifacts
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Test and coverage reports
+.coverage
+.coverage.*
+htmlcov/
+cover/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Node / Playwright artifacts
+node_modules/
+.yarn/
+playwright-report/
+blob-report/
+test-results/
+.playwright/
+
+# Log and temp files
+*.log
+logs/
+*.tmp
+tmp/
+temp/
+*.pid
+
+# Local data dumps
+*.sqlite
+*.sqlite3
+*.db
+rag_data/
+rpa_data/
+video_output/
+
+# Downloaded artifacts and binaries
+*.mp4
+*.mkv
+*.flv
+*.ts
+*.webm
+yt-dlp.exe
+
+# Cookies / credentials
+*cookies*.txt
+bili_cookies.txt2
+cookies.json
+*.pem
+*.key
+*.crt
+
+# Generated visualizations
+function_call_graph.html
+python_method_call_graph.html
+
+playwright_tools/
+selenium_tools/
+leidian_phones/
+temp_to_compact/

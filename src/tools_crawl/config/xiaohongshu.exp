@@ -1,0 +1,164 @@
+{
+  "originalConfig": {
+    "数库库类型": "MySql",
+    "连接字符串": "server=localhost;database=crawler_db;uid=root;pwd=;charset=utf8mb4;",
+    "数据表对应配置": [
+      {
+        "类型": "json",
+        "路径": "data.items",
+        "路径类型": 0,
+        "数据库表名": "xiaohongshu_notes",
+        "表字段": "note_id,display_title,desc,type,user.user_id,user.nickname,user.avatar,interact_info.liked_count,interact_info.collected_count,interact_info.comment_count,interact_info.share_count,cover.url,cover.width,cover.height,tag_list,time,last_update_time,ip_location,image_list,video",
+        "字段说明": {
+          "note_id": {
+            "Item1": "笔记唯一标识",
+            "Item2": "T"
+          },
+          "display_title": {
+            "Item1": "笔记标题",
+            "Item2": "T"
+          },
+          "desc": {
+            "Item1": "笔记描述",
+            "Item2": "T"
+          },
+          "type": {
+            "Item1": "笔记类型(normal/video)",
+            "Item2": "T"
+          },
+          "user.user_id": {
+            "Item1": "用户ID",
+            "Item2": "T"
+          },
+          "user.nickname": {
+            "Item1": "用户昵称",
+            "Item2": "T"
+          },
+          "user.avatar": {
+            "Item1": "用户头像",
+            "Item2": "T"
+          },
+          "interact_info.liked_count": {
+            "Item1": "点赞数",
+            "Item2": "T"
+          },
+          "interact_info.collected_count": {
+            "Item1": "收藏数",
+            "Item2": "T"
+          },
+          "interact_info.comment_count": {
+            "Item1": "评论数",
+            "Item2": "T"
+          },
+          "interact_info.share_count": {
+            "Item1": "分享数",
+            "Item2": "T"
+          },
+          "cover.url": {
+            "Item1": "封面图片URL",
+            "Item2": "T"
+          },
+          "cover.width": {
+            "Item1": "封面宽度",
+            "Item2": "T"
+          },
+          "cover.height": {
+            "Item1": "封面高度",
+            "Item2": "T"
+          },
+          "tag_list": {
+            "Item1": "标签列表",
+            "Item2": "T"
+          },
+          "time": {
+            "Item1": "发布时间",
+            "Item2": "T"
+          },
+          "last_update_time": {
+            "Item1": "最后更新时间",
+            "Item2": "T"
+          },
+          "ip_location": {
+            "Item1": "IP位置",
+            "Item2": "T"
+          },
+          "image_list": {
+            "Item1": "图片列表",
+            "Item2": "T"
+          },
+          "video": {
+            "Item1": "视频信息",
+            "Item2": "T"
+          }
+        },
+        "自动创建视图": true,
+        "数据是否去重": true,
+        "数据去重字段": "note_id",
+        "去重时数据更新": false
+      }
+    ],
+    "说明": "《《《数据解析使用递归遍历JSON机制，自动匹配所有字段。字段名使用点号分隔的层级结构，如user.nickname表示user对象下的nickname字段》》》",
+    "请求信息": {
+      "url": "https://edith.xiaohongshu.com/api/sns/web/v1/feed",
+      "headers": "POST /api/sns/web/v1/feed HTTP/1.1\r\nHost: edith.xiaohongshu.com\r\nConnection: keep-alive\r\nContent-Length: 50\r\nAccept: application/json, text/plain, */*\r\nAccept-Encoding: gzip, deflate, br\r\nAccept-Language: zh-CN,zh;q=0.9,en;q=0.8\r\nCache-Control: no-cache\r\nContent-Type: application/json;charset=UTF-8\r\nOrigin: https://www.xiaohongshu.com\r\nPragma: no-cache\r\nReferer: https://www.xiaohongshu.com/\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\nX-S: s1\r\nX-T: 1640995200\r\n",
+      "postData": "{\"cursor_score\":\"\",\"num\":20,\"refresh_type\":1,\"note_index\":0}",
+      "body": "{\r\n  \"code\": 0,\r\n  \"success\": true,\r\n  \"msg\": \"\",\r\n  \"data\": {\r\n    \"items\": [\r\n      {\r\n        \"note_id\": \"64a1b2c3d4e5f6789012345\",\r\n        \"display_title\": \"小红书笔记标题示例\",\r\n        \"desc\": \"这是一个小红书笔记的描述内容，包含了详细的文字说明。\",\r\n        \"type\": \"normal\",\r\n        \"user\": {\r\n          \"user_id\": \"user123456\",\r\n          \"nickname\": \"用户昵称\",\r\n          \"avatar\": \"https://sns-avatar-qc.xhscdn.com/avatar/1040g2jo30o8cc8npdq005p2rq0g82qnr2q8cc8n\"\r\n        },\r\n        \"interact_info\": {\r\n          \"liked_count\": 1234,\r\n          \"collected_count\": 567,\r\n          \"comment_count\": 89,\r\n          \"share_count\": 12\r\n        },\r\n        \"cover\": {\r\n          \"url\": \"https://sns-img-bd.xhscdn.com/1040g008311cc8npdq005p2rq0g82qnr2q8cc8n\",\r\n          \"width\": 1080,\r\n          \"height\": 1440\r\n        },\r\n        \"tag_list\": [\"美食\", \"生活\", \"分享\"],\r\n        \"time\": \"2024-01-15 10:30:00\",\r\n        \"last_update_time\": \"2024-01-15 10:30:00\",\r\n        \"ip_location\": \"上海\",\r\n        \"image_list\": [\r\n          \"https://sns-img-bd.xhscdn.com/1040g008311cc8npdq005p2rq0g82qnr2q8cc8n\",\r\n          \"https://sns-img-bd.xhscdn.com/1040g008311cc8npdq005p2rq0g82qnr2q8cc8n\"\r\n        ],\r\n        \"video\": null\r\n      }\r\n    ]\r\n  }\r\n}"
+    }
+  },
+  "crawlerConfig": {
+    "targetUrls": {
+      "mainSite": "https://www.xiaohongshu.com",
+      "explorePage": "https://www.xiaohongshu.com/explore",
+      "apiEndpoint": "https://edith.xiaohongshu.com/api/sns/web/v1/feed"
+    },
+    "browserActions": {
+      "scrollActions": [
+        {
+          "action": "scroll",
+          "selector": "body",
+          "direction": "down",
+          "distance": 1000,
+          "waitTime": 2000,
+          "description": "向下滚动页面加载更多内容"
+        },
+        {
+          "action": "scroll",
+          "selector": "body",
+          "direction": "down",
+          "distance": 2000,
+          "waitTime": 3000,
+          "description": "继续向下滚动触发更多数据加载"
+        }
+      ],
+      "clickActions": [
+        {
+          "action": "click",
+          "selector": ".load-more-btn",
+          "waitTime": 2000,
+          "optional": true,
+          "description": "点击加载更多按钮"
+        },
+        {
+          "action": "click",
+          "selector": ".note-item",
+          "waitTime": 1000,
+          "optional": true,
+          "description": "点击笔记项目查看详情"
+        }
+      ],
+      "waitConditions": [
+        {
+          "type": "networkIdle",
+          "timeout": 5000,
+          "description": "等待网络请求完成"
+        },
+        {
+          "type": "elementVisible",
+          "selector": ".note-list",
+          "timeout": 10000,
+          "description": "等待笔记列表加载完成"
+        }
+      ]
+    }
+  }
+}

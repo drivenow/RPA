@@ -1,0 +1,222 @@
+{
+  "数库库类型": "MySql",
+  "连接字符串": "7265D2423FBDF0E88990CAE69586573DBBC4CE8CF01912E958787B23C8CEDF80C6E529D553A0AC0D2B48FA1C658EF3CEA19AC51FE762C1C1DD4A6CDF5F6588DAA20472E2ED705D8F5FDAF469C848EC70CDD161E9E262381D72E41791239B7A43",
+  "数据表对应配置": [
+    {
+      "类型": "json",
+      "路径": "data.feed_list",
+      "路径类型": 0,
+      "数据库表名": "yujing_subscription",
+      "表字段": "entry_id,entry_type,feed_source,title,url,category,pub_time,surface_url,info_source.info_source_type,info_source.info_source_id,info_source.info_source_name,info_source.info_source_profile,info_source.info_source_profile_name,info_source.last_update_time,info_source.info_source_root,info_source.info_source_description,info_source.info_source_category,info_source.rec_rank,info_source.default_select,info_source.can_cancel,info_source.shield,info_source.is_ban,has_read,description,is_hot,content_length,read_progress,recommend_source,theme_color,novel_form_surface_url,channel.channel_id,channel.name,channel.description,channel.surface_url,channel.status,channel.creator_id,channel.has_subscribed,cursor,sort_type,limit,filter_unread,channel_ids",
+      "字段说明": {
+        "entry_id": {
+          "Item1": "唯一条目标识",
+          "Item2": "T"
+        },
+        "entry_type": {
+          "Item1": "条目类型",
+          "Item2": "T"
+        },
+        "feed_source": {
+          "Item1": "信息源",
+          "Item2": "T"
+        },
+        "title": {
+          "Item1": "标题",
+          "Item2": "T"
+        },
+        "url": {
+          "Item1": "链接",
+          "Item2": "T"
+        },
+        "category": {
+          "Item1": "分类",
+          "Item2": "T"
+        },
+        "pub_time": {
+          "Item1": "发布时间",
+          "Item2": "T"
+        },
+        "surface_url": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.info_source_type": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.info_source_id": {
+          "Item1": "信息源标识",
+          "Item2": "T"
+        },
+        "info_source.info_source_name": {
+          "Item1": "信息源名称",
+          "Item2": "T"
+        },
+        "info_source.info_source_profile": {
+          "Item1": "信息源头像",
+          "Item2": "T"
+        },
+        "info_source.info_source_profile_name": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.last_update_time": {
+          "Item1": "信息源更新时间",
+          "Item2": "T"
+        },
+        "info_source.info_source_root": {
+          "Item1": "信息源网址",
+          "Item2": "T"
+        },
+        "info_source.info_source_description": {
+          "Item1": "信息源介绍",
+          "Item2": "T"
+        },
+        "info_source.info_source_category": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.rec_rank": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.default_select": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.can_cancel": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.shield": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "info_source.is_ban": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "has_read": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "description": {
+          "Item1": "内容描述",
+          "Item2": "T"
+        },
+        "is_hot": {
+          "Item1": "是否热门",
+          "Item2": "T"
+        },
+        "content_length": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "read_progress": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "recommend_source": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "theme_color": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "novel_form_surface_url": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "channel.channel_id": {
+          "Item1": "频道标识",
+          "Item2": "T"
+        },
+        "channel.name": {
+          "Item1": "频道名称",
+          "Item2": "T"
+        },
+        "channel.info_sources": {
+          "Item1": "",
+          "Item2": "F"
+        },
+        "channel.description": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "channel.surface_url": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "channel.status": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "channel.creator_id": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "channel.has_subscribed": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "cursor": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "sort_type": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "limit": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "filter_unread": {
+          "Item1": "",
+          "Item2": "T"
+        },
+        "channel_ids": {
+          "Item1": "",
+          "Item2": "T"
+        }
+      },
+      "自动创建视图": true,
+      "数据是否去重": true,
+      "数据去重字段": "entry_id",
+      "去重时数据更新": false
+    }
+  ],
+  "说明": "《《《用户只需考虑数据库及数据表数据。下方请求信息和附加参数用于拆解链接和请求头中的关键值，系统默认传入不需要修改。如果有多个数据表不在原始表格中，可在上方对应配置中手工添加保存后重新打开并修改》》》",
+  "请求信息": {
+    "url": "https://api-public.lingowhale.com/api/feed/v2/feed/subscription",
+    "headers": "POST /api/feed/v2/feed/subscription HTTP/1.1\r\nHost: api-public.lingowhale.com\r\nConnection: keep-alive\r\nContent-Length: 103\r\nB-Id: ef44e130746246c892e6cad2c7406075\r\nsec-ch-ua-platform: \"Windows\"\r\nU-Id: 61f13721daba4602a54f479e5b678493\r\nWeb-Site: web\r\nTrace-Id: 6x6Puv0ySyH1PHKfj0hUA\r\nsec-ch-ua: \"Microsoft Edge\";v=\"135\", \"Not-A.Brand\";v=\"8\", \"Chromium\";v=\"135\"\r\nAuth-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJCdWZmZXJUaW1lIjo2MDQ4MDAsImlzcyI6ImF1dGhfdG9rZW4iLCJleHAiOjE3NDcyMzMwNTEsIm5iZiI6MTc0NjAyMzQ1MSwiVWlkIjoiNTA0YjZmZDA1YzZkNDNjYWIyNDM3M2FiYzkzMTBhYjciLCJQaWQiOiI2MWYxMzcyMWRhYmE0NjAyYTU0ZjQ3OWU1YjY3ODQ5MyIsIkdpZCI6MywiU3ViR2lkIjozMDIsIlBob25lIjoiIiwiVXNlck5hbWUiOiLnlKjmiLdfMTc0NTc2NDk5NzQzOCJ9.bOdAG-bBTKHu8J8JDOau8WqKgk6tFRSsy4FJOHHWysU\r\nGuest-Id: 7bfadaaa4b5f1d2768037d79bd88d241\r\nsec-ch-ua-mobile: ?0\r\nAccess-Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJCdWZmZXJUaW1lIjo2MDQ4MDAsImlzcyI6ImFjY2Vzc190b2tlbiIsImV4cCI6MTc0NjAzMDY1MSwibmJmIjoxNzQ2MDIzNDUxLCJVaWQiOiI1MDRiNmZkMDVjNmQ0M2NhYjI0MzczYWJjOTMxMGFiNyIsIlBpZCI6IjYxZjEzNzIxZGFiYTQ2MDJhNTRmNDc5ZTViNjc4NDkzIiwiR2lkIjozLCJTdWJHaWQiOjMwMiwiUGhvbmUiOiIiLCJVc2VyTmFtZSI6IueUqOaIt18xNzQ1NzY0OTk3NDM4In0.kukRt3cEfUuf10n0sljARb0U7KNrpxDbtgb_XsAQFKM\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0\r\nAccept: application/json, text/plain, */*\r\nContent-Type: application/json\r\nOrigin: https://lingowhale.com\r\nSec-Fetch-Site: same-site\r\nSec-Fetch-Mode: cors\r\nSec-Fetch-Dest: empty\r\nReferer: https://lingowhale.com/\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6\r\n",
+    "postData": "{\"cursor\":\"\",\"sort_type\":2,\"limit\":10,\"filter_unread\":false,\"channel_ids\":[\"6812390c50ec085890d39d0d\"]}",
+    "body": "{\r\n  \"code\": 0,\r\n  \"msg\": \"\",\r\n  \"data\": {\r\n    \"feed_list\": [\r\n      {\r\n        \"entry_id\": \"68120ef053c14ecb7886de11\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"期货交易可能出现的七次大坑，掉进去不容易出来？\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1746007328,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430195404_1917547999404183552_786242.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"67748456eee9135b1ce60f36\",\r\n          \"info_source_name\": \"翌派量化\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg\",\r\n          \"info_source_profile_name\": \"翌派量化\",\r\n          \"last_update_time\": 1746013936,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"可视化量化、策略分享、最新资讯、交易心得等\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"本文揭示期货交易中常见的致命陷阱，从止损、心态到认知升级，助你避开雷区，稳健盈利。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 1297,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430195404_1917547999404183552_786242.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"67748456eee9135b1ce60f36\",\r\n              \"info_source_name\": \"翌派量化\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg\",\r\n              \"info_source_profile_name\": \"翌派量化\",\r\n              \"last_update_time\": 1746013936,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"可视化量化、策略分享、最新资讯、交易心得等\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"68120e1beb4dea55023c85db\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"大家口中的交易高手，都是“高”在哪里？期货股票交易者必读！\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1746007328,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430194945_1917546914417430528_876070.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"67748456eee9135b1ce60f36\",\r\n          \"info_source_name\": \"翌派量化\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg\",\r\n          \"info_source_profile_name\": \"翌派量化\",\r\n          \"last_update_time\": 1746013936,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"可视化量化、策略分享、最新资讯、交易心得等\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"成功的交易者并非依赖“神预测”，而是凭借对市场规律的深刻理解和克服内心的“作死”思维。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 1177,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430194945_1917546914417430528_876070.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"67748456eee9135b1ce60f36\",\r\n              \"info_source_name\": \"翌派量化\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg\",\r\n              \"info_source_profile_name\": \"翌派量化\",\r\n              \"last_update_time\": 1746013936,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"可视化量化、策略分享、最新资讯、交易心得等\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"6811fe7fc505eaade851139e\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"SMC掠夺流动性全图解：主力如何扫荡散户交易者？洞悉流动性背后的血腥规则\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1746004974,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1KQiuu28WLMp4a1lDh1hzN78.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n          \"info_source_name\": \"交易员说\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n          \"info_source_profile_name\": \"交易员说\",\r\n          \"last_update_time\": 1746011961,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"若你能掌握流动性的本质，就能摆脱大众交易思维，转而与聪明钱共舞。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 2055,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1KQiuu28WLMp4a1lDh1hzN78.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n              \"info_source_name\": \"交易员说\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n              \"info_source_profile_name\": \"交易员说\",\r\n              \"last_update_time\": 1746011961,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"68120739ed8d8b25588d3189\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"ATFX策略师：美元指数还能不能重新站上100关口？\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1746001534,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/dfSsN3pF4aU3nNlIq3XQzZ1.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n          \"info_source_name\": \"交易员说\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n          \"info_source_profile_name\": \"交易员说\",\r\n          \"last_update_time\": 1746011961,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"ATFX汇市：1月10日，美元指数冲高至110.18点，创出两年多新高。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 814,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/dfSsN3pF4aU3nNlIq3XQzZ1.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n              \"info_source_name\": \"交易员说\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n              \"info_source_profile_name\": \"交易员说\",\r\n              \"last_update_time\": 1746011961,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"681203b1f867503b2a48d210\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"ATFX港股：南向资金持续加注，新消费股跑赢大盘的趋势延续\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1746001534,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430190608_1917535939482308608_1096153.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n          \"info_source_name\": \"交易员说\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n          \"info_source_profile_name\": \"交易员说\",\r\n          \"last_update_time\": 1746011961,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"ATFX港股：近日，港股市场整体呈窄幅震荡走势，南向资金则出现净流出现象。从近一周净买入情况看，南向资金最青睐消费股。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 782,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430190608_1917535939482308608_1096153.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n              \"info_source_name\": \"交易员说\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n              \"info_source_profile_name\": \"交易员说\",\r\n              \"last_update_time\": 1746011961,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"6811a35faadcfc59446559ba\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"赣州交易者必看！5月10日顶级交易员空降虔城，手把手教你用机构思维收割市场\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1745976256,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/31oCy627oVyd49jT2M2CZpp5.jpeg\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n          \"info_source_name\": \"交易员说\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n          \"info_source_profile_name\": \"交易员说\",\r\n          \"last_update_time\": 1746011961,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"与交易大赛冠军、职业交易员和分析师面对面。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 948,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/31oCy627oVyd49jT2M2CZpp5.jpeg\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n              \"info_source_name\": \"交易员说\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n              \"info_source_profile_name\": \"交易员说\",\r\n              \"last_update_time\": 1746011961,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"68117578c505eaade8338fb9\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"用deepseek学量化：捉妖筹码选股模型深度解析--散户也能掌握的强势股筛选法\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1745971700,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/4edqYd20Q4AJpVIzB132GY0.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"672ef7b07f8198cb63bd9b77\",\r\n          \"info_source_name\": \"欧欧量化抓妖记\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1/20241109134833_1855125305204875264_45812.jpeg\",\r\n          \"info_source_profile_name\": \"欧欧量化抓妖记\",\r\n          \"last_update_time\": 1745974648,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"收藏一些实用的基础选股公式和期货指标\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"点击关注↓↓↓，置顶+星标每天订阅，学习更多指标内容☼↓↓↓一、模型定位：精准捕捉短线强势股的智能筛选工具\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 1529,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/4edqYd20Q4AJpVIzB132GY0.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"672ef7b07f8198cb63bd9b77\",\r\n              \"info_source_name\": \"欧欧量化抓妖记\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1/20241109134833_1855125305204875264_45812.jpeg\",\r\n              \"info_source_profile_name\": \"欧欧量化抓妖记\",\r\n              \"last_update_time\": 1745974648,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"收藏一些实用的基础选股公式和期货指标\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"681194f7ed8d8b255875d846\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"年报披露接近尾声，各期指主力合约均贴水股指分红监控\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1745971612,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430111542_1917417550998884352_652948.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"67fb07def38a19d676b9441f\",\r\n          \"info_source_name\": \"量化藏经阁\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1mdibq1atueo1xziFU1LQQQP.jpeg\",\r\n          \"info_source_profile_name\": \"量化藏经阁\",\r\n          \"last_update_time\": 1745982711,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"分享量化投资和FOF投资领域的研究成果。\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"国信金工股指分红监控20250429\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 4336,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430111542_1917417550998884352_652948.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"67fb07def38a19d676b9441f\",\r\n              \"info_source_name\": \"量化藏经阁\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1mdibq1atueo1xziFU1LQQQP.jpeg\",\r\n              \"info_source_profile_name\": \"量化藏经阁\",\r\n              \"last_update_time\": 1745982711,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"分享量化投资和FOF投资领域的研究成果。\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"6811132465de70fbd97319f3\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"各类资产低风险套利策略解读 - 跨品种套利（附Python模型，免费加群学习）\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1745940108,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/33T5zY4bsXwb4hzSXk3SnCTU.jpeg\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"6804a67311154191ccf1ff78\",\r\n          \"info_source_name\": \"摸鱼量化\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1L9jJ43sbnzqKINRWsm2R.jpeg\",\r\n          \"info_source_profile_name\": \"摸鱼量化\",\r\n          \"last_update_time\": 1745949476,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"国内外名牌高校毕业，头部券商、基金从业人员组建的量化团队，致力于摸鱼自动化把钱赚，高低频稳定盈利，带你理解逻辑自恰、创新不断的量化交易世界！\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"在价格进入到一个明显的趋势之后，它将一直沿着贯穿其整个趋势的特定路线而自动运行一一一利弗莫尔\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 3092,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/33T5zY4bsXwb4hzSXk3SnCTU.jpeg\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"6804a67311154191ccf1ff78\",\r\n              \"info_source_name\": \"摸鱼量化\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/1L9jJ43sbnzqKINRWsm2R.jpeg\",\r\n              \"info_source_profile_name\": \"摸鱼量化\",\r\n              \"last_update_time\": 1745949476,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"国内外名牌高校毕业，头部券商、基金从业人员组建的量化团队，致力于摸鱼自动化把钱赚，高低频稳定盈利，带你理解逻辑自恰、创新不断的量化交易世界！\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      },\r\n      {\r\n        \"entry_id\": \"681131d565de70fbd97882e4\",\r\n        \"entry_type\": 7,\r\n        \"feed_source\": 9,\r\n        \"title\": \"非农前金价可能进入盘整走势，日内关注逢高做空机会\",\r\n        \"url\": \"\",\r\n        \"category\": null,\r\n        \"pub_time\": 1745930020,\r\n        \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/3rAUgv43A0NuizfVd4d8VPh.png\",\r\n        \"info_source\": {\r\n          \"info_source_type\": 2,\r\n          \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n          \"info_source_name\": \"交易员说\",\r\n          \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n          \"info_source_profile_name\": \"交易员说\",\r\n          \"last_update_time\": 1746011961,\r\n          \"info_source_root\": \"mp.weixin.qq.com\",\r\n          \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n          \"info_source_category\": 2,\r\n          \"rec_rank\": 0,\r\n          \"default_select\": false,\r\n          \"can_cancel\": true,\r\n          \"shield\": false,\r\n          \"is_ban\": false\r\n        },\r\n        \"has_read\": false,\r\n        \"description\": \"昨天的复盘里给出了3300上方做空的思路，策略发出后，金价整体以上涨为主，问题出在对日内偏见的出错。\",\r\n        \"is_hot\": false,\r\n        \"content_length\": 730,\r\n        \"read_progress\": 0,\r\n        \"recommend_source\": 9,\r\n        \"theme_color\": null,\r\n        \"novel_form_surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/3rAUgv43A0NuizfVd4d8VPh.png\",\r\n        \"channel\": {\r\n          \"channel_id\": \"6812390c50ec085890d39d0d\",\r\n          \"name\": \"探索量化交易新生态\",\r\n          \"info_sources\": [\r\n            {\r\n              \"info_source_type\": 2,\r\n              \"info_source_id\": \"6788ec96e0d77d27cce19e08\",\r\n              \"info_source_name\": \"交易员说\",\r\n              \"info_source_profile\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2qeezY2Yq8aP2BfXkg19Qmx1.jpeg\",\r\n              \"info_source_profile_name\": \"交易员说\",\r\n              \"last_update_time\": 1746011961,\r\n              \"info_source_root\": \"mp.weixin.qq.com\",\r\n              \"info_source_description\": \"洞悉行业本质，分享交易精髓。为读者分享国内外交易员交易理念、交易案例及交易策略等。\",\r\n              \"info_source_category\": 2,\r\n              \"rec_rank\": 0,\r\n              \"default_select\": false,\r\n              \"can_cancel\": true,\r\n              \"shield\": false,\r\n              \"is_ban\": false\r\n            }\r\n          ],\r\n          \"description\": \"深度解析量化策略与市场趋势\",\r\n          \"surface_url\": \"https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png\",\r\n          \"status\": 2,\r\n          \"creator_id\": \"61f13721daba4602a54f479e5b678493\",\r\n          \"has_subscribed\": true\r\n        }\r\n      }\r\n    ],\r\n    \"cursor\": \"eyJjdXJzb3JfaWQiOiI2ODEyM2E0MzI4OGY3ZjE0MjliYjEzODUiLCJjcmVhdGVfdGltZSI6IjIwMjUtMDQtMzBUMjI6NTc6MDcuOTMwNzY0NjQ2KzA4OjAwIiwibGFzdF9oaW50cyI6WzE3NDU5MzAwMjAsIjY4MTEzMWQ1NjVkZTcwZmJkOTc4ODJlNCJdfQ==\",\r\n    \"has_more\": true,\r\n    \"ignore_keywords_cnt\": 0\r\n  }\r\n}"
+  },
+  "附加参数": {
+    "UrlRemarkByUrlAndQuery": [
+      "yujing_subscription",
+      "",
+      "https://api-public.lingowhale.com/api/feed/v2/feed/subscription"
+    ],
+    "Query": "",
+    "config_url_cookies_key_2table": [],
+    "config_url_query_key_2table": [],
+    "config_url_query_exclude_key_2table": [],
+    "config_url_json_path_2table": [
+      {
+        "url": "https://api-public.lingowhale.com/api/feed/v2/feed/subscription",
+        "querys": "",
+        "json_path": "data.feed_list",
+        "conv_type": 0,
+        "uGgroup": "public",
+        "type": "json",
+        "table_name": "api-public_lingowhale_api_feed_v2_feed_subscription_json_",
+        "table_field_set": "",
+        "isTrend": null
+      }
+    ]
+  }
+}

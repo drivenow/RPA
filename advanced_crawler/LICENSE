@@ -1,0 +1,91 @@
+MIT License
+
+Copyright (c) 2024 Advanced Proxy Crawler Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+重要声明 / Important Notice:
+
+本软件仅供学习和研究目的使用。使用本软件时，请遵守以下原则：
+
+1. 遵守法律法规：
+   - 遵守所在国家和地区的相关法律法规
+   - 尊重网站的robots.txt文件和使用条款
+   - 不得用于非法用途或侵犯他人权益
+
+2. 道德使用：
+   - 合理控制访问频率，避免对目标网站造成过大负担
+   - 尊重网站的知识产权和数据权益
+   - 不得恶意攻击或破坏目标系统
+
+3. 数据保护：
+   - 妥善保护获取的数据，避免泄露个人隐私
+   - 遵守相关的数据保护法规（如GDPR、个人信息保护法等）
+   - 不得将获取的数据用于商业用途（除非获得授权）
+
+4. 技术责任：
+   - 使用者对使用本软件的行为和后果承担全部责任
+   - 开发者不对使用本软件造成的任何损失承担责任
+   - 建议在使用前充分测试，确保符合预期
+
+5. 学习目的：
+   - 本软件主要用于技术学习和研究
+   - 鼓励用户学习其中的技术原理和实现方法
+   - 欢迎贡献代码和改进建议
+
+This software is intended for educational and research purposes only. 
+When using this software, please follow these principles:
+
+1. Legal Compliance:
+   - Comply with relevant laws and regulations in your country/region
+   - Respect websites' robots.txt files and terms of service
+   - Do not use for illegal purposes or infringe others' rights
+
+2. Ethical Use:
+   - Control access frequency reasonably to avoid overloading target websites
+   - Respect intellectual property and data rights of websites
+   - Do not maliciously attack or damage target systems
+
+3. Data Protection:
+   - Properly protect acquired data and avoid privacy leaks
+   - Comply with relevant data protection regulations (GDPR, etc.)
+   - Do not use acquired data for commercial purposes without authorization
+
+4. Technical Responsibility:
+   - Users bear full responsibility for their use of this software
+   - Developers are not liable for any losses caused by using this software
+   - Recommend thorough testing before use to ensure expected behavior
+
+5. Educational Purpose:
+   - This software is primarily for technical learning and research
+   - Users are encouraged to learn the technical principles and implementation
+   - Contributions and improvement suggestions are welcome
+
+================================================================================
+
+免责声明 / Disclaimer:
+
+使用本软件即表示您已阅读、理解并同意遵守上述条款。如果您不同意这些条款，
+请不要使用本软件。
+
+By using this software, you acknowledge that you have read, understood, 
+and agree to comply with the above terms. If you do not agree with these 
+terms, please do not use this software.
