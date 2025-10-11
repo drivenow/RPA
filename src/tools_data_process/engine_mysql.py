@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 from tools_data_process.utils_format_text import format_text
 from tools_data_process.engine_excel import ExcelEngine
-
+from tools_data_process.utils_path import get_media_url_excel_path
 
 # 数据库连接类
 class MysqlEngine:
@@ -16,7 +16,7 @@ class MysqlEngine:
 
     def __init__(self):
         # 连接数据库
-        self.db = pymysql.connect(host='localhost', user='admin', password='ybsDW246401.', db='mydatabase',
+        self.db = pymysql.connect(host='192.168.1.2', port = 3306, user='admin', password='ybsDW246401.', db='mydatabase',
                                   charset='utf8')
         # 创建connection，用pandas 读取表
         self.cursor = self.db.cursor()
@@ -280,26 +280,29 @@ class MysqlEngine:
             result_dict[keyword] = results[results["keyword"] == keyword]
         return result_dict
 
-    def sql_to_excel(self, plateform, start_date=None, end_date=None):
-        if plateform == "bili":
+    def sql_to_excel(self, media_type, start_date=None, end_date=None):
+        """
+        不同媒体源有不同的数据结构，需要根据平台进行处理
+        """
+        if media_type == "bili":
             result_dict = self._execute_bili_vidio_sql(start_date=start_date, end_date=end_date)
             drop_duplicates_columns = ['标题', '视频地址']
-        elif plateform == "weixin":
+        elif media_type == "weixin":
             result_dict = self._execute_weixin_article_sql(start_date=start_date, end_date=end_date)
             drop_duplicates_columns = ['标题']
-        elif plateform == "boss":
+        elif media_type == "boss":
             result_dict = self._execute_boss_jobs_sql(start_date=start_date, end_date=end_date)
             drop_duplicates_columns = ['encryptJobId']
-        elif plateform == "kimi":
+        elif media_type == "kimi":
             result_dict = self._execute_kimi_chat_sql(start_date=start_date, end_date=end_date)
             drop_duplicates_columns = ['id']
-        elif plateform == "common_url":
+        elif media_type == "common_url":
             result_dict = self._execute_common_url_sql()
             drop_duplicates_columns = ['网页标题']
         else:
-            raise Exception("sql_to_excel 平台错误: {}".format(plateform))
+            raise Exception("sql_to_excel 平台错误: {}".format(media_type))
         excel_engine1 = ExcelEngine()
-        sub_file_path1, main_file_path1 = excel_engine1.get_summary_path(platform=plateform,
+        sub_file_path1, main_file_path1 = get_media_url_excel_path(media_type=media_type,
                                                                          date=datetime.now().strftime('%Y-%m-%d'))
         excel_engine1.dict_df_to_excel(result_dict, sub_file_path1)
         excel_engine1.merge_excel(sub_file_path1,
@@ -313,6 +316,6 @@ if __name__ == '__main__':
     # results = mysql_engine._execute_bili_vidio_sql()
     # results = mysql_engine._execute_weixin_article_sql()
     # print(results)
-    # mysql_engine.sql_to_excel(plateform="boss", start_date="2021-01-01")
-    # mysql_engine.sql_to_excel(plateform="kimi", start_date="2021-01-01")
-    mysql_engine.sql_to_excel(plateform="weixin")
+    # mysql_engine.sql_to_excel(media_type="boss", start_date="2021-01-01")
+    # mysql_engine.sql_to_excel(media_type="kimi", start_date="2021-01-01")
+    mysql_engine.sql_to_excel(media_type="weixin")

@@ -7,6 +7,7 @@ import json
 import sys 
 sys.path.append("..")
 from tools_data_process.engine_excel import save_and_append_xlsx
+from tools_data_process.utils_path import get_root_media_save_path
 
 
 def get_home_page_url(sub_page_urls):
@@ -67,6 +68,6 @@ if __name__ == '__main__':
     ]
     result_df = get_home_page_url(sub_page_urls)
     save_and_append_xlsx(result_df, sheet_name, overwrite_col="__biz",
-                         output_path="X:/RPA/rpa_data/batch_urls/home_page_url.xlsx")
+                         output_path=os.path.join(get_root_media_save_path("homepage_url", None)[1], "home_page_url.xlsx"))
 
 

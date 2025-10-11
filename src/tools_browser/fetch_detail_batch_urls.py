@@ -3,8 +3,9 @@ from xml.etree import ElementTree
 import pandas as pd
 import os
 from tools_data_process.engine_mysql import MysqlEngine
+from tools_data_process.utils_path import get_root_media_save_path
 
-batch_urls_base_dir = r"X:\RAG\rpa_data\batch_urls"
+batch_urls_base_dir = get_root_media_save_path("homepage_url", None)[1]
 
 
 def __get_url_gkdata():

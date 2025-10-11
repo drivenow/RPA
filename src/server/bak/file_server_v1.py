@@ -8,9 +8,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding
 from datetime import datetime, timedelta
+from tools_data_process.utils_path import get_media_root
+
 
 class SecureHTTPRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, directory="E:\\RAG", **kwargs):
+    def __init__(self, *args, directory=get_media_root(), **kwargs):
         if not os.path.exists(directory):
             raise ValueError(f"Directory '{directory}' does not exist")
         super().__init__(*args, directory=directory, **kwargs)

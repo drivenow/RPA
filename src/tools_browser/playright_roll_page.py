@@ -1,4 +1,5 @@
 from playwright.sync_api import sync_playwright
+from tools_data_process.utils_path import get_project_root
 import time
 
 
@@ -6,7 +7,7 @@ def visible_operation(url):
     with sync_playwright() as p:
         # 启动自定义路径的Chrome（带可视化界面）
         browser = p.chromium.launch_persistent_context(
-            user_data_dir=r"X:\\RPA\\playwright_tools\\chromedriver-win64\\",  # 用户数据目录[1](@ref)
+            user_data_dir=os.path.join(get_project_root(), "playwright_tools/chromedriver-win64/"),  # 用户数据目录[1](@ref)
             headless=False,  # 显示浏览器界面[7](@ref)
             slow_mo=500,  # 操作延迟500ms便于观察[3](@ref)
             # proxy={"server": config["proxy_server"]},  # 代理配置[3](@ref)

@@ -4,7 +4,7 @@ from exAudio import run_split
 from speech2text import load_whisper, run_speech_to_text
 
 
-def process_video_to_text(video_url, title, video_save_dir="X:\\RAG\\bilibili_video", audio_save_dir=None):
+def process_video_to_text(video_url, title, video_save_dir, audio_save_dir=None):
     """
     将视频处理成文本的完整工具函数
     Args:

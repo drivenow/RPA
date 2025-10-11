@@ -4,6 +4,13 @@ import time
 from retrying import retry
 from tqdm import tqdm
 
+def get_whisper_model_dir():
+    if os.path.exists("/mnt/c/Users/fullmetal/.cache/whisper/"):
+        return "/mnt/c/Users/fullmetal/.cache/whisper/"
+    elif os.path.exists("/mnt/x/RAG_192.168.1.2/.cache/whisper/"):
+        return "/mnt/x/RAG_192.168.1.2/.cache/whisper/"
+    else:
+        return "~/.cache/whisper"
 whisper_model = None
 
 
@@ -21,7 +28,7 @@ def load_whisper(model="tiny"):
     start_time = time.time()
     if whisper_model is None:
         device = "cuda" if is_cuda_available() else "xpu" if is_rocm_available() else "cpu"
-        whisper_model = whisper.load_model(model, device=device)
+        whisper_model = whisper.load_model(model, device=device, download_root=get_whisper_model_dir())
         print("Whisper模型加载耗时：", time.time() - start_time, "秒：" + model)
 
 
@@ -29,8 +36,11 @@ def load_whisper(model="tiny"):
 def run_speech_to_text(title, audio_split_folder, text_save_path, prompt="以下是普通话的句子。"):
     global whisper_model
     # 读取列表中的音频文件
-    audio_list = os.listdir(audio_split_folder)
-    audio_list = sorted(audio_list, key=lambda x: int(x.split(".")[0]))
+    if os.path.isdir(audio_split_folder):
+        audio_list = os.listdir(audio_split_folder)
+        audio_list = sorted(audio_list, key=lambda x: int(x.split(".")[0]))
+    else:
+        audio_list = [audio_split_folder]
     print(audio_list)
 
     print("正在转换文本...")

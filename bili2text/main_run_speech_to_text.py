@@ -1,7 +1,7 @@
 import os
 import whisper
 from tools_ai.text_llm import deepseek_invoke, qwen_revise_text
-from tools_data_process.utils_path import get_file_path
+from tools_data_process.utils_path import get_root_media_save_path
 import ray
 from tqdm import tqdm
 
@@ -187,7 +187,7 @@ def judge_text_type(sheet_name):
 if __name__ == '__main__':
     file_type = "bili"
     sheet_name = "像素范"
-    voice_dir, text_output_dir = get_file_path(file_type, sheet_name)
+    voice_dir, text_output_dir = get_root_media_save_path(file_type, sheet_name)
 
     if file_type == "bili":
         target_filelist = []  #

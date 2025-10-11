@@ -1,8 +1,13 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "bili2text"
+name = "RPA"
 version = "0.1.0"
-description = "Bilibili video to text converter"
-requires-python = ">=3.8"
+description = "RPA to text converter"
+
+requires-python = ">=3.12"
 dependencies = [
     "annotated-types==0.6.0",
     "argcomplete==3.2.2",
@@ -46,8 +51,17 @@ dependencies = [
     "urllib3==2.2.2",
     "userpath==1.9.1",
     "whisper==1.1.10",
+    "curl_cffi==0.13.0",
+    "retrying==1.4.2",
+    "pandas",
+    "openpyxl",
+    "pymysql",
+    "langchain_community==0.3.21",
+    "openai==2.3.0",
+    "ray>=2.12",
+    "faster_whisper"
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+
+
+# apt install -y ffmpeg"

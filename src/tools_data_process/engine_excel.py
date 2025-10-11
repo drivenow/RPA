@@ -4,11 +4,12 @@ import os
 from pathlib import Path
 from datetime import datetime
 from openpyxl import load_workbook
+from tools_data_process.utils_path import get_media_url_excel_path
 
 
 class ExcelEngine:
-    def __init__(self, base_dir="X:\\RAG\\rpa_data\\"):
-        self.base_dir = base_dir
+    def __init__(self):
+        pass
 
     def dict_to_excel(self, data, file_name, sheet_name):
         # 第一步，将数据写入子excel文件
@@ -54,20 +55,6 @@ class ExcelEngine:
         except Exception as e:
             print(f"读取Excel出错: {str(e)}")
             raise
-
-    def get_summary_path(self, platform: str, date=None):
-        if not os.path.exists(os.path.join(self.base_dir, platform)):
-            print(f"WARNIGN: 创建新目录, {os.path.join(self.base_dir, platform)}")
-            os.makedirs(os.path.join(self.base_dir, platform))
-        if date is None:
-            date = datetime.now().strftime('%Y-%m-%d')
-        else:
-            date = pd.to_datetime(date).strftime('%Y-%m-%d')
-        sub_file_path = os.path.join(self.base_dir, platform, f"{platform}_{date}.xlsx")
-        main_file_path = os.path.join(self.base_dir, platform, f"{platform}_summary.xlsx")
-        print("get_summary_path: ", sub_file_path, main_file_path)
-        return sub_file_path, main_file_path
-
   
 
     def df_to_excel(self, df, file_name, sheet_name):
@@ -262,7 +249,7 @@ def save_and_append_xlsx(result_df, sheet_name, overwrite_col=None, output_path=
 if __name__ == '__main__':
     mode = "test"
     engine = ExcelEngine()
-    sub_file_name, main_file_name = engine.get_summary_path("bili", "2025-01-05")
+    sub_file_name, main_file_name = get_media_url_excel_path("bili", "2025-01-05")
     drop_duplicates_column = '标题'
 
     engine.merge_excel(sub_file_name, main_file_name, drop_duplicates_column)

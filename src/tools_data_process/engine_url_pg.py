@@ -14,7 +14,7 @@ import psycopg2
 from psycopg2 import sql
 import pandas as pd
 from tools_data_process.utils_format_text import parse_json_markdown,format_folder_name
-from tools_data_process.utils_path import get_file_path
+from tools_data_process.utils_path import get_root_media_save_path, get_project_root
 
 
 class PostgresEngine:
@@ -309,7 +309,7 @@ async def url_to_sql_vector(topic_keyword: str, topic_urls: List[str], topic_tit
         use_managed_browser=True,
         text_mode=False,
         use_persistent_context=True,
-        user_data_dir=r"X:\\RPA\\playwright_tools\\chromedriver-win64\\",
+        user_data_dir=os.path.join(get_project_root(), "playwright_tools/chromedriver-win64/"),
         browser_type="chromium",
         proxy_config={
             "server": "http://127.0.0.1:7897"
@@ -328,7 +328,7 @@ async def url_to_sql_vector(topic_keyword: str, topic_urls: List[str], topic_tit
         semaphore = asyncio.Semaphore(max_concurrent)
 
         async def process_url(url: str, title: str):
-            voice_dir, text_save_path = get_file_path("crawl4ai", format_folder_name(topic_keyword))
+            voice_dir, text_save_path = get_root_media_save_path("crawl4ai", format_folder_name(topic_keyword))
             os.makedirs(text_save_path, exist_ok=True)
             file_name = format_folder_name(title) + ".txt"
             if os.path.exists(os.path.join(text_save_path, file_name)) and os.path.getsize(
@@ -364,7 +364,7 @@ if __name__ == "__main__":
 
     # urls, titles, keywords = get_batch_urls(sitemap_url="https://ai.pydantic.dev/sitemap.xml")
     # urls, titles, keywords = get_batch_urls(sitemap_url="gkdata")
-    batch_urls_base_dir = r"X:\RAG\rpa_data\batch_urls"
+    batch_urls_base_dir = get_root_media_save_path("homepage_url", None)[1]
     weixin_df = pd.read_excel(os.path.join(batch_urls_base_dir, r"home_page_url.xlsx"))
     for homepage_name in weixin_df["主页名称"]:
         batch_urls, batch_titles, keywords = get_batch_urls(sitemap_url=f"weixin_{homepage_name}")

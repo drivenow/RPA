@@ -8,6 +8,8 @@ import os, sys
 import json
 from retrying import retry
 import subprocess
+from tools_data_process.utils_path import get_project_root
+from platform import system
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
@@ -99,10 +101,10 @@ def download_audio_new(bv_number, title, video_save_dir=None, autio_save_dir=Non
     try:
         if video_type == "bili":
             url = "https://www.bilibili.com/video/{}".format(bv_number)
-            cookie_file = "X:\\RPA\\bili_cookies.txt"
+            cookie_file = os.path.join(get_project_root(), "bili_cookies.txt")
         else:
             url = "https://www.youtube.com/watch?v={}".format(bv_number)
-            cookie_file = "X:\\RPA\\youtube_cookies.txt"
+            cookie_file = os.path.join(get_project_root(), "youtube_cookies.txt")
         if video_save_dir:
             save_dir = video_save_dir
             # 调用子进程执行命令
@@ -137,15 +139,15 @@ def download_audio_new(bv_number, title, video_save_dir=None, autio_save_dir=Non
                 assert result == 0, "下载失败"
             except:
                 result = subprocess.call(
-                    'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --cookies X:\\RPA\\bili_cookies.txt'.format(
-                        url, save_dir, title), shell=True)
+                    'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --cookies "{}"'.format(
+                        url, save_dir, title, cookie_file), shell=True)
                 print(
-                    'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --cookies X:\\RPA\\bili_cookies.txt'.format(
-                        url, save_dir, title))
+                    'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --cookies "{}"'.format(
+                        url, save_dir, title, cookie_file))
                 assert result == 0, "下载失败"
         return title
     except Exception as e:
         import traceback
         print(traceback.print_exc())
-        print("发生错误:", str(e))
-        return
+        raise Exception("发生错误:", str(e))
+        

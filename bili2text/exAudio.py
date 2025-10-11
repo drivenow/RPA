@@ -30,7 +30,7 @@ def split_mp3(filename, slice_length=1200000, target_folder="audio/slice"):
 
 
 # 运行切割函数
-def run_split(video_title, vidio_folder, audio_folder, audio_split_folder, split = True):
+def run_split(video_title, vidio_folder, audio_folder, split = True):
     # 将FLV视频文件加载为一个VideoFileClip对象
     file_name = [i for i in os.listdir(vidio_folder) if video_title in i and not "temp" in i]
     if not file_name:
@@ -40,7 +40,7 @@ def run_split(video_title, vidio_folder, audio_folder, audio_split_folder, split
     # 提取音频部分
     audio = clip.audio
     if audio is None:
-        raise ValueError("无法从视频中提取音频: {}".format(video_title))
+        raise ValueError("无法从视频中提取音频: {}".format(file_name))
     # 将音频保存为一个文件（例如MP3），写入conv文件夹
     audio.write_audiofile(f"{audio_folder}/{video_title}.mp3")
     # 关闭视频文件
@@ -48,5 +48,9 @@ def run_split(video_title, vidio_folder, audio_folder, audio_split_folder, split
 
     # 运行切割
     if split:
+        audio_split_folder = os.path.join(audio_folder, video_title)
+        os.makedirs(audio_split_folder, exist_ok=True)
         split_mp3(f"{audio_folder}/{video_title}.mp3", target_folder=audio_split_folder)
-    return True
+        return audio_split_folder
+    else:
+        return f"{audio_folder}/{video_title}.mp3"
