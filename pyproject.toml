@@ -59,9 +59,13 @@ dependencies = [
     "langchain_community==0.3.21",
     "openai==2.3.0",
     "ray>=2.12",
-    "faster_whisper"
+    "faster_whisper==1.2.0",
+    "transformers==4.57.0",
+    "funasr==1.2.7",
+    "torchaudio==2.8.0+cu126"
 ]
 
 
 
 # apt install -y ffmpeg"
+# sudo apt-get install -y libcudnn9-cuda-12 libcudnn9-dev-cuda-12
