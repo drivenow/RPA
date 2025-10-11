@@ -101,6 +101,7 @@ class BiliSpeechPipeline:
     
     def process_job(self, job: VideoJob, *, skip_existing: bool = True) -> JobResult:
         from downBili import download_audio_new
+        from speech2text import run_speech_to_text
         from exAudio import run_split
         start = time.time()
         # 视频下载路径
@@ -120,11 +121,8 @@ class BiliSpeechPipeline:
                 autio_save_dir=None,
                 video_type=job.video_type,
             )
-            from speech2text import load_whisper, run_speech_to_text
-            load_whisper(self.whisper_model)
             audio_split_dir = run_split(job.title, video_dir, audio_dir)
-            run_speech_to_text(job.title, audio_split_dir, text_path,        
-                prompt="以下是普通话的句子。请注意添加标点符号。")
+            run_speech_to_text(job.title, audio_split_dir, text_path, engine="funasr")
             elapsed = time.time() - start
             print(f"==== 完成: {job.title}，耗时 {elapsed:.2f} 秒 ====")
             return JobResult(job=job, status="success", elapsed=elapsed)
@@ -142,10 +140,16 @@ class BiliSpeechPipeline:
 
 if __name__=="__main__":
     # https://www.youtube.com/watch?v=E5mU5RYT61o
+    # https://www.youtube.com/watch?v=NUeluCHIf8A
     pipeline = BiliSpeechPipeline()
     # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
     jobs = [VideoJob(media_type='bili', bvid='BV1VwrzYgEc5',
-         title='经济形态发展，夜之城、皮城-祖安式的结构？', sheet_name='15741969', video_type='bili')]
+         title='经济形态发展，夜之城、皮城-祖安式的结构？', sheet_name='自定义', video_type='bili'),
+         VideoJob(media_type='bili', bvid='NUeluCHIf8A',
+         title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
+        VideoJob(media_type='bili', bvid='E5mU5RYT61o',
+         title='经济学必读书籍《思考快与慢》精读：为什么我们总是错误决策？', sheet_name='自定义', video_type='youtube')
+         ]
     print(jobs)
 
     results = []

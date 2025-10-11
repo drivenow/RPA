@@ -3,7 +3,7 @@ from pydub import AudioSegment
 import os
 import numpy as np
 import time
-
+from tqdm import tqdm
 
 def split_mp3(filename, slice_length=1200000, target_folder="audio/slice"):
     # 加载MP3文件
@@ -12,7 +12,7 @@ def split_mp3(filename, slice_length=1200000, target_folder="audio/slice"):
     # 计算分割的数量
     total_slices = int(np.ceil(len(audio) / slice_length))
 
-    for i in range(total_slices):
+    for i in tqdm(range(total_slices), desc="切割音频"):
         # 分割音频
         start = i * slice_length
         end = start + slice_length
@@ -24,7 +24,7 @@ def split_mp3(filename, slice_length=1200000, target_folder="audio/slice"):
     
         # 导出分割的音频片段
         # 放慢音频的播放速度，将其减慢到原来的0.8倍
-        slice = slice.speedup(playback_speed=0.8)
+        # slice = slice.speedup(playback_speed=0.8)
         slice.export(slice_path, format="mp3")
         print(f"Slice {i} saved: {slice_path}")
 
