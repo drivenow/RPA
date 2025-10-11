@@ -37,7 +37,6 @@ dependencies = [
     "pipx==1.4.3",
     "proglog==0.1.10",
     "pydub==0.25.1",
-    "pynput==1.7.6",
     "regex==2024.9.11",
     "requests==2.32.3",
     "six==1.16.0",
