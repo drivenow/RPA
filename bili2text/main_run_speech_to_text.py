@@ -185,11 +185,11 @@ def judge_text_type(sheet_name):
 
 
 if __name__ == '__main__':
-    file_type = "bili"
+    media_type = "bili"
     sheet_name = "像素范"
-    voice_dir, text_output_dir = get_root_media_save_path(file_type, sheet_name)
+    voice_dir, text_output_dir = get_root_media_save_path(media_type, sheet_name)
 
-    if file_type == "bili":
+    if media_type == "bili":
         target_filelist = []  #
         text_output_file_name = "first_level_path_name"  # 以voice_dir的第一层目录名作为输出文件名
         flag0_rename_voice_file = False  # 第0步，是否转换音频存储格式
@@ -197,14 +197,14 @@ if __name__ == '__main__':
         flag2_summary = False  # 第二步，是否总结文章
         flag3_corret_text = True  # 第三步，是否纠错文本
         summary_output_dir = os.path.join(text_output_dir, "summary")
-    elif file_type == "computer_record":
+    elif media_type == "computer_record":
         target_filelist = []
         text_output_file_name = "result_text"  # 输出文件名为识别的文本
         flag0_rename_voice_file = True
         flag1_convert_text = True
         flag2_summary = False
         flag3_corret_text = False
-    elif file_type == "phone_record":
+    elif media_type == "phone_record":
         ##########################################################
         target_filelist = ["t0策略规划.wav", "策略规划1.wav", "策略规划2.wav", "策略规划3.wav"][:1]
         text_output_file_name = "first_level_path_name"  # 输出文件名为源文件名

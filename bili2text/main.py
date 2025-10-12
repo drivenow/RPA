@@ -15,7 +15,7 @@ from main_run_speech_to_text import summarize_text, judge_text_type
 @dataclass
 class VideoJob:
     media_type: str
-    bvid: str
+    url: str
     title: str
     sheet_name: Optional[str]
     video_type: str
@@ -66,30 +66,31 @@ class BiliSpeechPipeline:
         print("main_file_path: ", main_file_path, df)
         jobs: List[VideoJob] = []
         for _, row in df.iterrows():
-            bvid = row.get("bvid")
-            raw_title = row.get("标题")
-            if pd.isna(bvid):
+            url = row.get("url")
+            if not url:
                 continue
+            video_type = "bili" if url.startswith("https://www.bilibili.com/video/") else "youtube"
+            raw_title = row.get("标题")
             title_value = "" if pd.isna(raw_title) else str(raw_title)
-            job = self.create_job(str(bvid), title_value, sheet_name, media_type)
+            job = self.create_job(str(url), title_value, sheet_name, media_type, video_type)
             if job:
                 jobs.append(job)
         return jobs
 
     def create_job(
         self,
-        bvid: str,
+        url: str,
         raw_title: str,
         sheet_name: Optional[str],
         media_type: str,
+        video_type: str,
     ) -> Optional[VideoJob]:
-        if not bvid:
+        if not url:
             return None
         if not sheet_name:
             raise ValueError("sheet_name 不能为空，当处理单个视频时请提供 --single-sheet 参数。")
-        title = sanitize_title(raw_title or "", fallback=bvid)
-        video_type = "bili" if bvid.startswith("BV") else "youtube"
-        return VideoJob(media_type=media_type, bvid=bvid, title=title, sheet_name=sheet_name, video_type=video_type)
+        title = sanitize_title(raw_title or "", fallback=url)
+        return VideoJob(media_type=media_type, url=url, title=title, sheet_name=sheet_name, video_type=video_type)
 
     def ensure_paths(self, title) -> None:
         audio_dir, text_path, video_dir = get_root_media_save_path(job.media_type, job.sheet_name)
@@ -111,11 +112,11 @@ class BiliSpeechPipeline:
         if skip_existing and os.path.exists(os.path.join(text_path, f"{job.title}.txt")):
             print(f"==== 跳过已存在: {text_path}  ====")
             return JobResult(job=job, status="skipped", elapsed=0.0, message="transcript already exists")
-        if job.bvid and type(job.title) == str and len(job.title) > 0:
-            print(f"==== 开始处理: {job.title} ({job.bvid}) ====")
+        if job.url and type(job.title) == str and len(job.title) > 0:
+            print(f"==== 开始处理: {job.title} ({job.url}) ====")
         try:
             download_audio_new(
-                job.bvid,
+                job.url,
                 job.title,
                 video_save_dir=video_dir,
                 autio_save_dir=None,
@@ -139,17 +140,26 @@ class BiliSpeechPipeline:
 
 
 if __name__=="__main__":
-    # https://www.youtube.com/watch?v=E5mU5RYT61o
-    # https://www.youtube.com/watch?v=NUeluCHIf8A
+    """
+    美国反制！中美关系风云突变！股市惨烈，风暴将至？美国经济到底有没有韧性？在这个节骨眼下，很快就会被验证了！Figure机器人惊艳！家中要添保姆了吗？大摩相信光？给出了什么投资建议？
+    https://www.youtube.com/watch?v=9iRysdU_hBc
+    【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI
+    https://www.bilibili.com/video/BV1hNJ1zLEb8/?spm_id_from=333.337.search-card.all.click
+    """
     pipeline = BiliSpeechPipeline()
-    # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
-    jobs = [VideoJob(media_type='bili', bvid='BV1VwrzYgEc5',
-         title='经济形态发展，夜之城、皮城-祖安式的结构？', sheet_name='自定义', video_type='bili'),
-         VideoJob(media_type='bili', bvid='NUeluCHIf8A',
-         title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
-        VideoJob(media_type='bili', bvid='E5mU5RYT61o',
-         title='经济学必读书籍《思考快与慢》精读：为什么我们总是错误决策？', sheet_name='自定义', video_type='youtube')
-         ]
+    if True:
+        # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
+        jobs = [VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
+            title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
+            VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=NUeluCHIf8A',
+            title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
+            ]+pipeline.build_jobs_from_excel("youtube_browser", "stone记")
+    else:
+        jobs = [VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
+            title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
+            VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=NUeluCHIf8A',
+            title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
+            ]
     print(jobs)
 
     results = []

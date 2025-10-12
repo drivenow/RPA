@@ -10,10 +10,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding
 from datetime import datetime, timedelta
 from page_renderer import PageRenderer
-from tools_data_process.utils_path import get_project_root
+from tools_data_process.utils_path import get_media_root
 
 class SecureHTTPRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, directory=get_project_root(), **kwargs):
+    def __init__(self, *args, directory=get_media_root(), **kwargs):
         if not os.path.exists(directory):
             raise ValueError(f"Directory '{directory}' does not exist")
         self.page_renderer = PageRenderer()

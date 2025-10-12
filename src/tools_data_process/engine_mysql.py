@@ -1,3 +1,4 @@
+import json
 import pymysql
 import pandas as pd
 from datetime import datetime
@@ -111,9 +112,9 @@ class MysqlEngine:
         results = self.cursor.fetchall()
         # 抓换为DataFrame格式
         results = pd.DataFrame(results, columns=[
-            '采集时间', '发布时间', '搜索词', '作者', '标题', '标签', '视频分类', '时长', '播放数', '点赞量',
+            '采集时间', '发布时间', '搜索词', 'url', '作者', '标题','标签', '视频分类', '时长', '播放数', '点赞量',
             '收藏量', '评论数量', '弹幕数量', '留言量',
-            '视频描述', '视频地址', '封面', 'ID', 'bvid', 'mid', 'upic', 'desc', 'url', 'page', 'season_id'        ])
+            '视频描述', '视频地址', '封面', 'ID', 'bvid', 'mid', 'upic', 'desc',  'page', 'season_id'        ])
         results["标题"] = results["标题"].apply(format_text)
 
         def get_poster(x):
@@ -132,11 +133,129 @@ class MysqlEngine:
                 return poster
 
         results["搜索词"] = results.apply(lambda x: get_poster(x), axis=1)
+        results["url"] = results["bvid"].apply(lambda x: "https://www.bilibili.com/video/{}".format(x) if x else None)
         search_word = results["搜索词"].unique().tolist()
         print("execute_bili_vidio_sql 搜索词：", search_word)
         result_dict = {}
         for word in search_word:
             result_dict[word] = results[results["搜索词"] == word]
+        return result_dict
+
+    def _execute_youtube_browser_sql(self, start_date=None, end_date=None):
+        if start_date is None:
+            start_date = '2021-01-01'
+        if end_date is None:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+
+        sql = """
+        SELECT
+            gk_id AS `ID`,
+            DATE_FORMAT(gk_createtime, '%%Y-%%m-%%d') AS `采集时间`,
+            gk_creator AS `gk_creator`,
+            `playlistVideoRenderer.videoId` AS `视频ID`,
+            `playlistVideoRenderer.title.runs` AS `标题JSON`,
+            `playlistVideoRenderer.shortBylineText.runs` AS `作者JSON`,
+            `p.V.R.Data.label` AS `视频信息`,
+            `playlistVideoRenderer.videoInfo.simpleText` AS `发布时间`,
+            `playlistVideoRenderer.videoInfo.runs` AS `发布时间JSON`,
+            `playlistVideoRenderer.lengthText.simpleText` AS `时长`,
+            `p.V.R.T.Data.label` AS `时长文本`,
+            `playlistVideoRenderer.lengthSeconds` AS `时长秒`,
+            `playlistVideoRenderer.navigationEndpoint.watchEndpoint.index` AS `播放列表序号`,
+            `playlistVideoRenderer.thumbnail.thumbnails` AS `封面JSON`,
+            `playlistVideoRenderer.thumbnailOverlays` AS `封面覆盖JSON`,
+            `p.V.R.E.M.C.Metadata.url` AS `视频路径`,
+            `p.V.R.E.M.C.M.P.Type` AS `页面类型`,
+            `p.V.R.E.M.C.M.Ve` AS `页面Ve`,
+            `p.V.R.E.E.Id` AS `端点视频ID`,
+            `p.V.R.E.E.E.S.O.C.P.O.C.Config.u` AS `流媒体链接`,
+            `context.client.hl` AS `语言`,
+            `context.client.gl` AS `地区`,
+            `context.client.remoteHost` AS `访问IP`,
+            `context.client.clientName` AS `客户端名称`,
+            `context.client.clientVersion` AS `客户端版本`,
+            `context.client.osName` AS `操作系统`,
+            `context.client.osVersion` AS `系统版本`,
+            `context.client.originalUrl` AS `来源页面`,
+            `context.client.mainAppWebInfo.graftUrl` AS `播放列表页面`,
+            `browseId` AS `搜索词`,
+            `context.client.userAgent` AS `UserAgent`
+        FROM `youtube专辑列表`
+        WHERE DATE(gk_createtime) >= %s AND DATE(gk_createtime) <= %s
+        ORDER BY gk_createtime DESC;
+        """
+        self.cursor.execute(sql, (start_date, end_date))
+        results = self.cursor.fetchall()
+        if not results:
+            print("execute_youtube_video_sql 无数据")
+            return {}
+
+        results = pd.DataFrame(results, columns=[
+            'ID', '采集时间', '搜索词', '视频ID', '标题JSON', '作者JSON', '视频信息', '发布时间', '发布时间JSON',
+            '时长', '时长文本', '时长秒', '播放列表序号', '封面JSON', '封面覆盖JSON', '视频路径', '页面类型',
+            '页面Ve', '端点视频ID', '流媒体链接', '语言', '地区', '访问IP',
+            '客户端名称', '客户端版本', '操作系统', '系统版本',
+            '来源页面', '播放列表页面', '播放列表ID', 'UserAgent'
+        ])
+
+        def _parse_runs(value):
+            if not value:
+                return ""
+            try:
+                runs = json.loads(value)
+                if isinstance(runs, list):
+                    return "".join([item.get("text", "") for item in runs if isinstance(item, dict)])
+            except Exception:
+                pass
+            return str(value)
+
+        def _parse_thumbnails(value):
+            if not value:
+                return ""
+            try:
+                thumbnails = json.loads(value)
+                if isinstance(thumbnails, list) and thumbnails:
+                    return thumbnails[0].get("url", "")
+            except Exception:
+                pass
+            return ""
+
+        def _build_watch_url(path):
+            if not path:
+                return ""
+            path = path.strip()
+            if path.startswith("http"):
+                return path
+            return f"https://www.youtube.com{path}"
+
+        results["标题"] = results["标题JSON"].apply(_parse_runs).apply(format_text)
+        results["作者"] = results["作者JSON"].apply(_parse_runs).apply(format_text)
+        results["封面"] = results["封面JSON"].apply(_parse_thumbnails)
+        results["视频地址"] = results["视频路径"].apply(_build_watch_url)
+        results["播放列表页面"] = results["播放列表页面"].apply(_build_watch_url)
+        results["来源页面"] = results["来源页面"].apply(_build_watch_url)
+        results["发布时间"] = results["发布时间"].fillna("")
+        发布时间补充 = results["发布时间JSON"].apply(_parse_runs)
+        results.loc[results["发布时间"] == "", "发布时间"] = 发布时间补充[results["发布时间"] == ""]
+        results["视频信息"] = results["视频信息"].fillna("").apply(format_text)
+        results["作者"] = results["作者"].replace("", "未知作者")
+        results["播放列表序号"] = pd.to_numeric(results["播放列表序号"], errors="coerce").fillna(-1).astype(int)
+        results["时长秒"] = pd.to_numeric(results["时长秒"], errors="coerce")
+        results["url"] = results["视频ID"].apply(lambda x: "https://www.youtube.com/watch?v={}".format(x) if x else None)
+        results.drop(columns=[
+            "标题JSON", "作者JSON", "封面JSON", "封面覆盖JSON", "视频路径", "发布时间JSON"
+        ], inplace=True)
+        results["搜索词"] = results["作者"]
+        results = results[['ID', '采集时间', '搜索词', "url", '视频ID', '标题', '作者', '视频信息', '发布时间',
+                           '时长', '时长文本', '时长秒', '播放列表序号', '视频地址', '封面', '页面类型',
+                           '页面Ve', '端点视频ID', '流媒体链接', '语言', '地区', '访问IP',
+                           '客户端名称', '客户端版本', '操作系统', '系统版本',
+                           '来源页面', '播放列表页面', '播放列表ID', 'UserAgent']]
+
+        result_dict = {}
+        for word in results["搜索词"].unique().tolist():
+            result_dict[word] = results[results["搜索词"] == word].reset_index(drop=True)
+        print("execute_youtube_video_sql 搜索词：", result_dict.keys())
         return result_dict
 
     def _execute_weixin_article_sql(self, start_date=None, end_date=None):
@@ -299,6 +418,9 @@ class MysqlEngine:
         elif media_type == "common_url":
             result_dict = self._execute_common_url_sql()
             drop_duplicates_columns = ['网页标题']
+        elif media_type == "youtube_browser":
+            result_dict = self._execute_youtube_browser_sql(start_date=start_date, end_date=end_date)
+            drop_duplicates_columns = ['视频ID']
         else:
             raise Exception("sql_to_excel 平台错误: {}".format(media_type))
         excel_engine1 = ExcelEngine()
@@ -318,4 +440,6 @@ if __name__ == '__main__':
     # print(results)
     # mysql_engine.sql_to_excel(media_type="boss", start_date="2021-01-01")
     # mysql_engine.sql_to_excel(media_type="kimi", start_date="2021-01-01")
-    mysql_engine.sql_to_excel(media_type="weixin")
+    # mysql_engine.sql_to_excel(media_type="weixin")
+    # mysql_engine.sql_to_excel(media_type="common_url")
+    mysql_engine.sql_to_excel(media_type="youtube_browser")

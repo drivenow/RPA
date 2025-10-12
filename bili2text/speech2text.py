@@ -1,9 +1,9 @@
 import os
 import time
-from typing import Dict, Iterable, List, Optional
 
 from retrying import retry
 from tqdm import tqdm
+from typing import Optional, Dict, List, Iterable, Any
 
 whisper_model = None
 whisper_model_name: Optional[str] = None
@@ -124,6 +124,102 @@ def _collect_audio_paths(audio_split_folder: str) -> List[str]:
     raise FileNotFoundError(f"音频路径不存在：{audio_split_folder}")
 
 
+def _format_timestamp(ms_value: Optional[float]) -> str:
+    """Convert millisecond timestamp to HH:MM:SS.mmm string."""
+    if ms_value is None:
+        return "00:00:00.000"
+    total_ms = int(ms_value)
+    seconds, milliseconds = divmod(total_ms, 1000)
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}"
+
+
+def _normalize_funasr_segments(
+    result: Dict[str, Any],
+    *,
+    processed_text: str,
+    postprocess_func,
+) -> List[Dict[str, Any]]:
+    """Extract sentence level segments from FunASR result."""
+    sentence_info = result.get("sentence_info") or []
+    segments: List[Dict[str, Any]] = []
+    if sentence_info:
+        for item in sentence_info:
+            text_raw = item.get("text", "")
+            text_processed = postprocess_func(text_raw) if text_raw else ""
+            segments.append(
+                {
+                    "start": item.get("start"),
+                    "end": item.get("end"),
+                    "spk": item.get("spk"),
+                    "text": text_processed.strip(),
+                }
+            )
+    else:
+        token_timestamps = result.get("timestamp") or []
+        if token_timestamps:
+            start_ms = token_timestamps[0][0]
+            end_ms = token_timestamps[-1][1]
+        else:
+            start_ms = 0
+            end_ms = 0
+        segments.append(
+            {
+                "start": start_ms,
+                "end": end_ms,
+                "spk": result.get("spk"),
+                "text": processed_text.strip(),
+            }
+        )
+    return segments
+
+
+def _write_funasr_segments(
+    output_path: str,
+    segments: List[Dict[str, Any]],
+) -> None:
+    """Write FunASR segments to file with timestamp blocks."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    previous_speaker = None
+    previous_end_ms = None
+    block_index = 0
+    with open(output_path, "w", encoding="utf-8") as txt_file:
+        for segment in segments:
+            if segment.get("reset_block"):
+                previous_speaker = None
+                previous_end_ms = None
+            start_ms = segment.get("start")
+            end_ms = segment.get("end")
+            speaker_id = segment.get("spk")
+            segment_text: str = segment.get("text", "")
+            insert_timestamp = False
+            if previous_speaker is None:
+                insert_timestamp = True
+            elif speaker_id != previous_speaker:
+                insert_timestamp = True
+            elif (
+                start_ms is not None
+                and previous_end_ms is not None
+                and start_ms - previous_end_ms > 60_000
+            ):
+                insert_timestamp = True
+
+            if insert_timestamp:
+                block_index += 1
+                start_label = _format_timestamp(start_ms)
+                end_label = _format_timestamp(end_ms)
+                speaker_label = f"SPEAK{speaker_id}" if speaker_id is not None else "SPEAK?"
+                txt_file.write(f"=========={block_index}.[{speaker_label}] ----> {start_label} ----> {end_label}==========\n")
+
+            if "。" in segment_text:
+                segment_text = segment_text.replace("。", "。\n")
+            txt_file.write(f"{segment_text}\n\n")
+
+            previous_speaker = speaker_id
+            if end_ms is not None:
+                previous_end_ms = end_ms
+
 def _ensure_whisper_model(load_options: Optional[Dict[str, object]] = None):
     load_options = dict(load_options or {})
     model_name = load_options.pop("model", load_options.pop("model_name", None))
@@ -168,9 +264,20 @@ def _transcribe_with_funasr(
     *,
     load_options: Optional[Dict[str, object]] = None,
     generate_options: Optional[Dict[str, object]] = None,
-) -> List[str]:
+) -> List[Dict[str, Any]]:
     load_options = dict(load_options or {})
-    model_dir = load_options.pop("model_dir", load_options.pop("model", "iic/SenseVoiceSmall"))
+    if "model_dir" not in load_options and "model" not in load_options:
+        load_options["model_dir"] = "paraformer-zh"
+    model_dir = load_options.get("model_dir") or load_options.get("model")
+    if "model" not in load_options:
+        load_options["model"] = model_dir
+    load_options.setdefault("device", "cuda:0" if is_cuda_available() else "cpu")
+    load_options.setdefault("vad_model", "fsmn-vad")
+    load_options.setdefault("vad_kwargs", {"max_single_segment_time": 30000})
+    load_options.setdefault("spk_model", "cam++")
+    load_options.setdefault("punc_model", "ct-punc")
+    load_options.setdefault("spk_mode", "punc_segment")
+    model_dir = load_options.pop("model_dir", model_dir)
     funasr = load_funasr(model_dir=model_dir, **load_options)
 
     from funasr.utils.postprocess_utils import rich_transcription_postprocess
@@ -182,11 +289,12 @@ def _transcribe_with_funasr(
         "batch_size_s": 60,
         "merge_vad": True,
         "merge_length_s": 15,
+        "sentence_timestamp": True,
     }
     if generate_options:
         default_generate.update(generate_options)
 
-    transcripts: List[str] = []
+    outputs: List[Dict[str, Any]] = []
     paths = list(audio_paths)
     for idx, audio_path in enumerate(tqdm(paths, desc="Transcribing (funasr)"), start=1):
         print(f"正在转换第{idx}个音频... {os.path.basename(audio_path)}")
@@ -196,12 +304,26 @@ def _transcribe_with_funasr(
         else:
             generate_kwargs["cache"] = {}
         result = funasr.generate(input=audio_path, **generate_kwargs)
+        text = ""
+        segments: List[Dict[str, Any]] = []
         if result:
-            text = rich_transcription_postprocess(result[0]["text"])
-        else:
-            text = ""
-        transcripts.append(text)
-    return transcripts
+            first_result = result[0]
+            text = rich_transcription_postprocess(first_result.get("text", ""))
+            segments = _normalize_funasr_segments(
+                first_result,
+                processed_text=text,
+                postprocess_func=rich_transcription_postprocess,
+            )
+            if segments:
+                segments[0]["reset_block"] = True
+        outputs.append(
+            {
+                "audio_path": audio_path,
+                "text": text,
+                "segments": segments,
+            }
+        )
+    return outputs
 
 
 
@@ -231,11 +353,16 @@ def run_speech_to_text(
     print("正在转换文本...")
     engine_kwargs = engine_kwargs or {}
     if engine == "funasr":
-        transcripts = _transcribe_with_funasr(
+        funasr_outputs = _transcribe_with_funasr(
             audio_paths,
             load_options=engine_kwargs.get("load_options"),
             generate_options=engine_kwargs.get("generate_options"),
         )
+        transcripts = [item.get("text", "") for item in funasr_outputs]
+        all_segments: List[Dict[str, Any]] = []
+        for item in funasr_outputs:
+            segments = item.get("segments") or []
+            all_segments.extend(segments)
     elif engine == "whisper":
         transcripts = _transcribe_with_whisper(
             audio_paths,
@@ -251,5 +378,15 @@ def run_speech_to_text(
     if punctuation_count < 3:
         raise ValueError("音频转换文本失败！")
 
-    _write_transcript(text_save_path, title, combined)
+
+    if engine == "funasr":
+        timestamp_output_path = os.path.join(text_save_path, f"{title}.txt")
+        if all_segments:
+            _write_funasr_segments(timestamp_output_path, all_segments)
+            print(f"带时间戳和说话人信息的文本已保存至: {timestamp_output_path}")
+        else:
+            print("FunASR 未返回可用的句级时间戳信息，跳过带说话人文本生成。")
+    else:
+        _write_transcript(text_save_path, title, combined)
+
     return combined

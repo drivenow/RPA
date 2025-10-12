@@ -18,7 +18,7 @@ dependencies = [
     "decorator==4.4.2",
     "fastapi==0.109.2",
     "filelock==3.16.1",
-    "fsspec==2024.9.0",
+    "fsspec>=2023.1.0,<=2024.3.1",
     "idna==3.7",
     "imageio==2.34.2",
     "imageio-ffmpeg==0.5.1",
@@ -62,10 +62,15 @@ dependencies = [
     "faster_whisper==1.2.0",
     "transformers==4.57.0",
     "funasr==1.2.7",
-    "torchaudio==2.8.0+cu126"
+    "torchaudio==2.8.0+cu126",
+    "modelscope==1.14.0",
+    "addict==2.4.0",
+    "pyarrow==17.0.0",
+    "datasets>=2.16.0,<2.19.0"
 ]
 
 
 
 # apt install -y ffmpeg"
 # sudo apt-get install -y libcudnn9-cuda-12 libcudnn9-dev-cuda-12
+# sudo apt-get install -y sox libsox-dev

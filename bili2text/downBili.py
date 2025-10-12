@@ -97,13 +97,11 @@ def download_video(bv_number, title, base_dir):
         print("发生错误:", str(e))
 
 
-def download_audio_new(bv_number, title, video_save_dir=None, autio_save_dir=None, video_type="bili"):
+def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, video_type="bili"):
     try:
         if video_type == "bili":
-            url = "https://www.bilibili.com/video/{}".format(bv_number)
             cookie_file = os.path.join(get_project_root(), "bili_cookies.txt")
         else:
-            url = "https://www.youtube.com/watch?v={}".format(bv_number)
             cookie_file = os.path.join(get_project_root(), "youtube_cookies.txt")
         if video_save_dir:
             save_dir = video_save_dir
