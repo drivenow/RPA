@@ -1,6 +1,6 @@
 # import imageio
 # imageio.plugins.ffmpeg.download()
-
+from urllib.parse import urlparse, parse_qs
 from curl_cffi import requests
 import time, hashlib, urllib.request, re, json
 from moviepy.editor import *
@@ -8,6 +8,7 @@ import os, sys
 import json
 from retrying import retry
 import subprocess
+import requests
 from tools_data_process.utils_path import get_project_root
 from platform import system
 
@@ -149,3 +150,45 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
         print(traceback.print_exc())
         raise Exception("发生错误:", str(e))
         
+
+
+def extract_real_audio_url(asset_url: str) -> str:
+    """
+    优先提取 assetUrl 中 jt= 的真实音频链接；若无 jt 参数，则直接返回 assetUrl。
+    """
+    if not asset_url:
+        return ""
+    parsed = urlparse(asset_url)
+    query_params = parse_qs(parsed.query)
+    jt_values = query_params.get("jt") or []
+    if jt_values:
+        return jt_values[0]
+    return asset_url
+
+
+def audio_stream_download(url: str, out_path: str, chunk_size: int = 1 << 14) -> None:
+    """
+    流式下载音频文件，避免占用过多内存。
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Python-requests",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+    }
+
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    with requests.get(url, headers=headers, stream=True, timeout=30) as response:
+        response.raise_for_status()
+        total = int(response.headers.get("Content-Length") or 0)
+        downloaded = 0
+        with open(out_path, "wb") as file_obj:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if not chunk:
+                    continue
+                file_obj.write(chunk)
+                downloaded += len(chunk)
+                if total:
+                    done = int(50 * downloaded / total)
+                    bar = "█" * done + "·" * (50 - done)
+                    print(f"\r[{bar}] {downloaded}/{total} bytes", end="")
+    print(f"\n✅ 已保存到: {out_path}")

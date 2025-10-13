@@ -258,6 +258,150 @@ class MysqlEngine:
         print("execute_youtube_video_sql 搜索词：", result_dict.keys())
         return result_dict
 
+    def _execute_podcasts_sql(self, start_date=None, end_date=None):
+        if start_date is None:
+            start_date = '2021-01-01'
+        if end_date is None:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+
+        sql = """
+        SELECT
+            gk_id AS `ID`,
+            DATE_FORMAT(gk_createtime, '%%Y-%%m-%%d') AS `采集时间`,
+            gk_creator AS `采集账号`,
+            id AS `节目ID`,
+            type AS `资源类型`,
+            href AS `API路径`,
+            `attributes.artistName` AS `播客名称`,
+            `attributes.name` AS `标题`,
+            `attributes.itunesTitle` AS `副标题`,
+            `attributes.description.short` AS `简介`,
+            `attributes.description.standard` AS `详细描述`,
+            `attributes.durationInMilliseconds` AS `时长毫秒`,
+            `attributes.episodeNumber` AS `集数`,
+            `attributes.releaseDateTime` AS `发布时间原始`,
+            `attributes.assetUrl` AS `音频链接`,
+            `attributes.url` AS `页面链接`,
+            `attributes.websiteUrl` AS `官网链接`,
+            `attributes.feedUrl` AS `订阅源`,
+            `attributes.genreNames` AS `分类JSON`,
+            `attributes.offers` AS `付费JSON`,
+            `attributes.contentRating` AS `内容评级`,
+            `attributes.contentAdvisory` AS `内容提示`,
+            `attributes.copyright` AS `版权`,
+            `attributes.guid` AS `GUID`,
+            `attributes.kind` AS `内容类型`,
+            `attributes.mediaKind` AS `媒体类型`,
+            `attributes.subscribable` AS `是否可订阅`,
+            `attributes.artwork.url` AS `封面链接`,
+            `attributes.artwork.height` AS `封面高度`,
+            `attributes.artwork.width` AS `封面宽度`,
+            `meta.contentVersion.MZ_INDEXER` AS `MZ_INDEXER版本`,
+            `meta.contentVersion.RTCI` AS `RTCI版本`
+        FROM `podcasts`
+        WHERE DATE(gk_createtime) >= %s AND DATE(gk_createtime) <= %s
+        ORDER BY gk_createtime DESC;
+        """
+        self.cursor.execute(sql, (start_date, end_date))
+        results = self.cursor.fetchall()
+        if not results:
+            print("execute_podcasts_sql 无数据")
+            return {}
+
+        columns = [
+            'ID', '采集时间', '采集账号', '节目ID', '资源类型', 'API路径', '播客名称', '标题', '副标题',
+            '简介', '详细描述', '时长毫秒', '集数', '发布时间原始', '音频链接', '页面链接', '官网链接', '订阅源',
+            '分类JSON', '付费JSON', '内容评级', '内容提示', '版权', 'GUID', '内容类型', '媒体类型',
+            '是否可订阅', '封面链接', '封面高度', '封面宽度', 'MZ_INDEXER版本', 'RTCI版本'
+        ]
+        results = pd.DataFrame(results, columns=columns)
+
+        def _clean_text(value):
+            if value is None:
+                return ""
+            value = str(value).strip()
+            if not value or value.lower() == "none":
+                return ""
+            return format_text(value)
+
+        def _parse_list_json(value, sep="、"):
+            if not value:
+                return ""
+            try:
+                parsed = json.loads(value)
+            except Exception:
+                return _clean_text(value)
+            if isinstance(parsed, list):
+                cleaned_items = []
+                for item in parsed:
+                    if isinstance(item, str):
+                        cleaned_items.append(_clean_text(item))
+                    elif isinstance(item, dict):
+                        kv_pairs = []
+                        for key, val in item.items():
+                            kv_val = _clean_text(val)
+                            if kv_val:
+                                kv_pairs.append(f"{key}:{kv_val}")
+                            else:
+                                kv_pairs.append(str(key))
+                        cleaned_items.append(", ".join(kv_pairs))
+                    else:
+                        cleaned_items.append(str(item))
+                return sep.join([item for item in cleaned_items if item])
+            if isinstance(parsed, dict):
+                return sep.join([f"{k}:{_clean_text(v)}" for k, v in parsed.items()])
+            return _clean_text(parsed)
+
+        text_columns = ["标题", "副标题", "简介", "详细描述", "版权"]
+        for col in text_columns:
+            results[col] = results[col].apply(_clean_text)
+
+        results["分类"] = results["分类JSON"].apply(lambda x: _parse_list_json(x, sep="、"))
+        results["付费信息"] = results["付费JSON"].apply(lambda x: _parse_list_json(x, sep="；"))
+        results.drop(columns=["分类JSON", "付费JSON"], inplace=True)
+
+        results["时长毫秒"] = pd.to_numeric(results["时长毫秒"], errors="coerce")
+        duration_seconds = (results["时长毫秒"] / 1000).round()
+        duration_seconds = duration_seconds.where(duration_seconds.notna(), pd.NA)
+        results["时长秒"] = duration_seconds.astype("Int64")
+
+        def _format_duration(seconds):
+            if pd.isna(seconds):
+                return ""
+            seconds = int(seconds)
+            hours, remainder = divmod(seconds, 3600)
+            minutes, sec = divmod(remainder, 60)
+            if hours:
+                return f"{hours:02d}:{minutes:02d}:{sec:02d}"
+            return f"{minutes:02d}:{sec:02d}"
+
+        results["时长"] = results["时长秒"].apply(_format_duration)
+
+        publish_dt = pd.to_datetime(results["发布时间原始"], errors="coerce")
+        results["发布时间"] = publish_dt.dt.strftime('%Y-%m-%d %H:%M:%S')
+        missing_publish = publish_dt.isna()
+        results.loc[missing_publish, "发布时间"] = results.loc[missing_publish, "发布时间原始"].fillna("")
+        results.drop(columns=["发布时间原始"], inplace=True)
+
+        results["播客名称"] = results["播客名称"].apply(_clean_text)
+        results["搜索词"] = results["播客名称"]
+        results["url"] = results["音频链接"].fillna("")
+
+        ordered_columns = [
+            "ID", "采集时间", "搜索词", "url", "节目ID", "标题", "副标题", "播客名称", "集数", "发布时间",
+            "时长", "时长秒", "时长毫秒", "音频链接", "官网链接", "页面链接", "订阅源", "分类", "简介",
+            "详细描述", "GUID", "内容类型", "媒体类型", "内容评级", "内容提示", "版权", "付费信息",
+            "是否可订阅", "采集账号", "资源类型", "API路径", "封面链接", "封面高度", "封面宽度",
+            "MZ_INDEXER版本", "RTCI版本"
+        ]
+        results = results[ordered_columns]
+
+        result_dict = {}
+        for word in results["搜索词"].unique().tolist():
+            result_dict[word] = results[results["搜索词"] == word].reset_index(drop=True)
+        print("execute_podcasts_sql 搜索词：", result_dict.keys())
+        return result_dict
+
     def _execute_weixin_article_sql(self, start_date=None, end_date=None):
         if start_date is None:
             start_date = '2021-01-01'
@@ -421,6 +565,9 @@ class MysqlEngine:
         elif media_type == "youtube_browser":
             result_dict = self._execute_youtube_browser_sql(start_date=start_date, end_date=end_date)
             drop_duplicates_columns = ['视频ID']
+        elif media_type == "podcasts":
+            result_dict = self._execute_podcasts_sql(start_date=start_date, end_date=end_date)
+            drop_duplicates_columns = ['节目ID']
         else:
             raise Exception("sql_to_excel 平台错误: {}".format(media_type))
         excel_engine1 = ExcelEngine()

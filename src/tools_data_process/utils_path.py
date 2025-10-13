@@ -30,7 +30,7 @@ def get_media_root():
 
 def get_root_media_save_path(media_type, sheet_name):
     base_dir = get_media_root()
-    if media_type.lower() in ["bili", "youtube_browser"]:
+    if media_type.lower() in ["bili", "youtube_browser", "podcasts"]:
         if not sheet_name:
             raise ValueError("media_type为bili时, sheet_name参数不能为空")
         voice_slice_dir = os.path.join(base_dir, f"audio/{sheet_name}/")

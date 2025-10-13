@@ -132,7 +132,7 @@ def _format_timestamp(ms_value: Optional[float]) -> str:
     seconds, milliseconds = divmod(total_ms, 1000)
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
-    return f"{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}"
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
 def _normalize_funasr_segments(
@@ -210,7 +210,7 @@ def _write_funasr_segments(
                 start_label = _format_timestamp(start_ms)
                 end_label = _format_timestamp(end_ms)
                 speaker_label = f"SPEAK{speaker_id}" if speaker_id is not None else "SPEAK?"
-                txt_file.write(f"=========={block_index}.[{speaker_label}] ----> {start_label} ----> {end_label}==========\n")
+                txt_file.write(f"========== <{speaker_label}> block{block_index} {start_label} ==========\n")
 
             if "。" in segment_text:
                 segment_text = segment_text.replace("。", "。\n")

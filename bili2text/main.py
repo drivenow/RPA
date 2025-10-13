@@ -5,6 +5,7 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
 import os
+import traceback
 from tools_data_process.engine_excel import ExcelEngine
 from tools_data_process.engine_mysql import MysqlEngine
 from tools_data_process.utils_path import get_root_media_save_path
@@ -66,13 +67,34 @@ class BiliSpeechPipeline:
         print("main_file_path: ", main_file_path, df)
         jobs: List[VideoJob] = []
         for _, row in df.iterrows():
-            url = row.get("url")
-            if not url:
-                continue
-            video_type = "bili" if url.startswith("https://www.bilibili.com/video/") else "youtube"
             raw_title = row.get("标题")
             title_value = "" if pd.isna(raw_title) else str(raw_title)
-            job = self.create_job(str(url), title_value, sheet_name, media_type, video_type)
+            if media_type == "podcasts":
+                audio_url = row.get("url")
+                if audio_url is None or pd.isna(audio_url):
+                    print(f"跳过缺少音频链接的播客：{title_value}")
+                    continue
+                audio_url_str = str(audio_url).strip()                
+                job = self.create_job(
+                    audio_url_str,
+                    title_value,
+                    sheet_name,
+                    media_type,
+                    video_type="podcast",
+                )
+            else:
+                url = row.get("url")
+                if not url:
+                    continue
+                url_str = str(url)
+                video_type = "bili" if url_str.startswith("https://www.bilibili.com/video/") else "youtube"
+                job = self.create_job(
+                    url_str,
+                    title_value,
+                    sheet_name,
+                    media_type,
+                    video_type,
+                )
             if job:
                 jobs.append(job)
         return jobs
@@ -90,9 +112,15 @@ class BiliSpeechPipeline:
         if not sheet_name:
             raise ValueError("sheet_name 不能为空，当处理单个视频时请提供 --single-sheet 参数。")
         title = sanitize_title(raw_title or "", fallback=url)
-        return VideoJob(media_type=media_type, url=url, title=title, sheet_name=sheet_name, video_type=video_type)
+        return VideoJob(
+            media_type=media_type,
+            url=url,
+            title=title,
+            sheet_name=sheet_name,
+            video_type=video_type,
+        )
 
-    def ensure_paths(self, title) -> None:
+    def ensure_paths(self, job: VideoJob):
         audio_dir, text_path, video_dir = get_root_media_save_path(job.media_type, job.sheet_name)
         os.makedirs(video_dir, exist_ok=True)
         os.makedirs(audio_dir, exist_ok=True)
@@ -101,34 +129,45 @@ class BiliSpeechPipeline:
 
     
     def process_job(self, job: VideoJob, *, skip_existing: bool = True) -> JobResult:
-        from downBili import download_audio_new
+        from downBili import download_audio_new, extract_real_audio_url, audio_stream_download
         from speech2text import run_speech_to_text
         from exAudio import run_split
         start = time.time()
         # 视频下载路径
-        video_dir, audio_dir, text_path = self.ensure_paths(job.title)
-        t1 = time.time()
-        self.ensure_paths(job.title)
+        video_dir, audio_dir, text_path = self.ensure_paths(job)
         if skip_existing and os.path.exists(os.path.join(text_path, f"{job.title}.txt")):
             print(f"==== 跳过已存在: {text_path}  ====")
             return JobResult(job=job, status="skipped", elapsed=0.0, message="transcript already exists")
         if job.url and type(job.title) == str and len(job.title) > 0:
             print(f"==== 开始处理: {job.title} ({job.url}) ====")
         try:
-            download_audio_new(
-                job.url,
-                job.title,
-                video_save_dir=video_dir,
-                autio_save_dir=None,
-                video_type=job.video_type,
-            )
-            audio_split_dir = run_split(job.title, video_dir, audio_dir)
-            run_speech_to_text(job.title, audio_split_dir, text_path, engine="funasr")
+            if job.media_type == "podcasts":
+                asset_url = extract_real_audio_url(job.url)
+                if not asset_url:
+                    raise ValueError(f"未找到可用的音频链接: {job.title}")
+                from urllib.parse import urlparse, parse_qs
+                parsed_path = urlparse(asset_url).path
+                ext = os.path.splitext(parsed_path)[1] or ".m4a"
+                audio_target_path = os.path.join(audio_dir, f"{job.title}{ext}")
+                audio_stream_download(asset_url, audio_target_path)
+                audio_input = audio_target_path
+            else:
+                download_audio_new(
+                    job.url,
+                    job.title,
+                    video_save_dir=video_dir,
+                    autio_save_dir=None,
+                    video_type=job.video_type,
+                )
+                audio_split_dir = run_split(job.title, video_dir, audio_dir)
+                audio_input = audio_split_dir
+            run_speech_to_text(job.title, audio_input, text_path, engine="funasr")
             elapsed = time.time() - start
             print(f"==== 完成: {job.title}，耗时 {elapsed:.2f} 秒 ====")
             return JobResult(job=job, status="success", elapsed=elapsed)
         except Exception as exc:
             elapsed = time.time() - start
+            traceback.print_exc()
             print(f"==== 失败: {job.title}，耗时 {elapsed:.2f} 秒 ====")
             print(exc)
             return JobResult(job=job, status="failed", elapsed=elapsed, message=str(exc), error=exc)
@@ -149,11 +188,8 @@ if __name__=="__main__":
     pipeline = BiliSpeechPipeline()
     if True:
         # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
-        jobs = [VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
-            title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
-            VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=NUeluCHIf8A',
-            title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
-            ]+pipeline.build_jobs_from_excel("youtube_browser", "stone记")
+        # jobs = pipeline.build_jobs_from_excel("youtube_browser", "stone记")
+        jobs = pipeline.build_jobs_from_excel("podcasts", "科学有故事")
     else:
         jobs = [VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
             title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
