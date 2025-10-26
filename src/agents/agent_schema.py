@@ -66,95 +66,76 @@ def annotation_fields_by_input(ctx: RunContext[str]) -> SimpleSQLSchema:
 
 
 if __name__ == '__main__':
+    # 请帮忙注释数据表如下字段，不要改变格式，注释内容精简，去除非重要的字段，只保留重要的字段。
     oneline_feilds = """
 https://www.coze.cn/store/agent/7340211457092583465?bid=6ek0nl8hg9g09&from=bots_card&panel=1&post_id=7414699438729461811
-请帮忙注释数据表“api-public_lingowhale_feed_subscription_json_data.feed_list”如下字段，不要改变格式，注释内容精简，如遇到字段包含.的，取右边字符串。
-entry_id：
-entry_type：
-feed_source：
-title：
-url：
-category：
-pub_time：
-surface_url：
-info_source.info_source_type：
-info_source.info_source_id：
-info_source.info_source_name：
-info_source.info_source_profile：
-info_source.info_source_profile_name：
-info_source.last_update_time：
-info_source.info_source_root：
-info_source.info_source_description：
-info_source.info_source_category：
-info_source.rec_rank：
-info_source.default_select：
-info_source.can_cancel：
-info_source.shield：
-info_source.is_ban：
-has_read：
-description：
-is_hot：
-content_length：
-read_progress：
-recommend_source：
-theme_color：
-novel_form_surface_url：
-channel.channel_id：
-channel.name：
-channel.info_sources：
-channel.description：
-channel.surface_url：
-channel.status：
-channel.creator_id：
-channel.has_subscribed：
-cursor：
-sort_type：
-limit：
-filter_unread：
-channel_ids：
+请帮忙注释数据表“amp-api_podcasts_apple__json_data_0_.relationships.episodes.data”如下字段，不要改变格式，注释内容精简，如遇到字段包含.的，取右边字符串。
+id：
+type：
+href：
+attributes.artistName：
+attributes.artwork.bgColor：
+attributes.artwork.hasP3：
+attributes.artwork.height：
+attributes.artwork.textColor1：
+attributes.artwork.textColor2：
+attributes.artwork.textColor3：
+attributes.artwork.textColor4：
+attributes.artwork.url：
+attributes.artwork.width：
+attributes.artworkOrigin：
+attributes.assetUrl：
+attributes.contentAdvisory：
+attributes.contentRating：
+attributes.copyright：
+attributes.description.short：
+attributes.description.standard：
+attributes.durationInMilliseconds：
+attributes.episodeNumber：
+attributes.feedUrl：
+attributes.genreNames：
+attributes.guid：
+attributes.itunesTitle：
+attributes.kind：
+attributes.mediaKind：
+attributes.name：
+attributes.offers：
+attributes.releaseDateTime：
+attributes.subscribable：
+attributes.url：
+attributes.websiteUrl：
+meta.contentVersion.MZ_INDEXER：
+meta.contentVersion.RTCI：
+extend：
+include：
+include[artists]：
+views：
+limit[episodes]：
+limit[trailers]：
+sort[trailers]：
+with：
+l：
     """
     online_examples = """
-entry_id	entry_type	feed_source	title	url	category	pub_time	surface_url	info_source.info_source_type	info_source.info_source_id	info_source.info_source_name	info_source.info_source_profile	info_source.info_source_profile_name	info_source.last_update_time	info_source.info_source_root	info_source.info_source_description	info_source.info_source_category	info_source.rec_rank	info_source.default_select	info_source.can_cancel	info_source.shield	info_source.is_ban	has_read	description	is_hot	content_length	read_progress	recommend_source	theme_color	novel_form_surface_url	channel.channel_id	channel.name	channel.info_sources	channel.description	channel.surface_url	channel.status	channel.creator_id	channel.has_subscribed	cursor	sort_type	limit	filter_unread	channel_ids
-68120ef053c14ecb7886de11	7	9	期货交易可能出现的七次大坑，掉进去不容易出来？			2025-04-30 18:02:08	https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430195404_1917547999404183552_786242.png	2	67748456eee9135b1ce60f36	翌派量化	https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg	翌派量化	2025-04-30 19:52:16	mp.weixin.qq.com	可视化量化、策略分享、最新资讯、交易心得等	2	0	False	True	False	False	False	本文揭示期货交易中常见的致命陷阱，从止损、心态到认知升级，助你避开雷区，稳健盈利。	False	1297	0	9		https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430195404_1917547999404183552_786242.png	6812390c50ec085890d39d0d	探索量化交易新生态	"[
+id	type	href	attributes.artistName	attributes.artwork.bgColor	attributes.artwork.hasP3	attributes.artwork.height	attributes.artwork.textColor1	attributes.artwork.textColor2	attributes.artwork.textColor3	attributes.artwork.textColor4	attributes.artwork.url	attributes.artwork.width	attributes.artworkOrigin	attributes.assetUrl	attributes.contentAdvisory	attributes.contentRating	attributes.copyright	attributes.description.short	attributes.description.standard	attributes.durationInMilliseconds	attributes.episodeNumber	attributes.feedUrl	attributes.genreNames	attributes.guid	attributes.itunesTitle	attributes.kind	attributes.mediaKind	attributes.name	attributes.offers	attributes.releaseDateTime	attributes.subscribable	attributes.url	attributes.websiteUrl	meta.contentVersion.MZ_INDEXER	meta.contentVersion.RTCI	extend	include	include[artists]	views	limit[episodes]	limit[trailers]	sort[trailers]	with	l
+1000730774000	podcast-episodes	/v1/catalog/cn/podcast-episodes/1000730774000?l=zh-Hans-CN	科学有故事	284c7f	False	1920	ffffff	ffe6d0	d4dbe5	d4c7bf	https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/d1/c9/d8/d1c9d89d-8f5e-6987-55e6-d53bededf85a/mza_8774732663420438988.jpg/{w}x{h}bb.{f}	1920	episode	https://jt.ximalaya.com//GKwRIUEMu9JKAJMgHgQeZu5v.m4a?channel=rss&album_id=4156778&track_id=918730110&uid=46980604&jt=https://aod.cos.tx.xmcdn.com/storages/dd8d-audiofreehighqps/80/90/GKwRIUEMu9JKAJMgHgQeZu5v.m4a		clean	汪洁 @喜马拉雅FM	据我观察，目前社会上普遍存在两种饮食健康观念误区，一种是只要看到配料表中出现自己看不懂的化学名词就莫名恐惧，我们之前的一期音频【那些我看到“配料表干净”就拉黑的食品】就	据我观察，目前社会上普遍存在两种饮食健康观念误区，一种是只要看到配料表中出现自己看不懂的化学名词就莫名恐惧，我们之前的一期音频【那些我看到“配料表干净”就拉黑的食品】就是针对这类误区而作。另一种误区则刚好反过来，就是对各种加工食品蛮不在乎，认为只要是能合法在超市销售的食品，健康程度都差不多，爱吃就吃，完全不在乎有什么健康风险。今天这期音频，就是针对这类误区。	1190000	1	http://www.ximalaya.com/album/4156778.xml	"[
+  ""自然科学""
+]"	xmly_track_918730110	营养成分表中最重要的数值，9成的人却从来不看	full	audio	营养成分表中最重要的数值，9成的人却从来不看	"[
   {
-    ""info_source_type"": 2,
-    ""info_source_id"": ""67748456eee9135b1ce60f36"",
-    ""info_source_name"": ""翌派量化"",
-    ""info_source_profile"": ""https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg"",
-    ""info_source_profile_name"": ""翌派量化"",
-    ""last_update_time"": 1746013936,
-    ""info_source_root"": ""mp.weixin.qq.com"",
-    ""info_source_description"": ""可视化量化、策略分享、最新资讯、交易心得等"",
-    ""info_source_category"": 2,
-    ""rec_rank"": 0,
-    ""default_select"": false,
-    ""can_cancel"": true,
-    ""shield"": false,
-    ""is_ban"": false
+    ""kind"": ""get"",
+    ""type"": ""STDQ""
   }
-]"	深度解析量化策略与市场趋势	https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png	2	61f13721daba4602a54f479e5b678493	True		2	10	False	"[
-  ""6812390c50ec085890d39d0d""
-]"
-68120e1beb4dea55023c85db	7	9	大家口中的交易高手，都是“高”在哪里？期货股票交易者必读！			2025-04-30 18:02:08	https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430194945_1917546914417430528_876070.png	2	67748456eee9135b1ce60f36	翌派量化	https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg	翌派量化	2025-04-30 19:52:16	mp.weixin.qq.com	可视化量化、策略分享、最新资讯、交易心得等	2	0	False	True	False	False	False	成功的交易者并非依赖“神预测”，而是凭借对市场规律的深刻理解和克服内心的“作死”思维。	False	1177	0	9		https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/resource_server/20250430194945_1917546914417430528_876070.png	6812390c50ec085890d39d0d	探索量化交易新生态	"[
+]"	2025/10/8 7:13:26	True	https://podcasts.apple.com/cn/podcast/%E8%90%A5%E5%85%BB%E6%88%90%E5%88%86%E8%A1%A8%E4%B8%AD%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E6%95%B0%E5%80%BC-9%E6%88%90%E7%9A%84%E4%BA%BA%E5%8D%B4%E4%BB%8E%E6%9D%A5%E4%B8%8D%E7%9C%8B/id1163969355?i=1000730774000	https://www.ximalaya.com/sound/918730110	1759910648022	0	availableEpisodeCount,editorialArtwork,feedUrl,sellerInfo,upsell,userRating	artists,episodes,genres,participants,reviews,trailers	podcasts	listeners-also-subscribed,channel-top-paid-shows	15	15	-releaseDate	entitlements,showHero	zh-Hans-CN
+1000730591375	podcast-episodes	/v1/catalog/cn/podcast-episodes/1000730591375?l=zh-Hans-CN	科学有故事	284c7f	False	1920	ffffff	ffe6d0	d4dbe5	d4c7bf	https://is1-ssl.mzstatic.com/image/thumb/Podcasts221/v4/e5/45/7e/e5457e62-856a-de62-0b8d-e2cb8fb3905a/mza_2692154151624816040.jpg/{w}x{h}bb.{f}	1920	episode	https://jt.ximalaya.com//GKwRIasMup27AIa5XgQd1d9U.m4a?channel=rss&album_id=4156778&track_id=918433638&uid=46980604&jt=https://aod.cos.tx.xmcdn.com/storages/8ba9-audiofreehighqps/D0/00/GKwRIasMup27AIa5XgQd1d9U.m4a		clean	汪洁 @喜马拉雅FM		"2025诺贝尔生理学或医学奖解读
+诺贝尔奖"	1090000	2	http://www.ximalaya.com/album/4156778.xml	"[
+  ""自然科学""
+]"	xmly_track_918433638	2025 诺贝尔生理学或医学奖解读	full	audio	2025 诺贝尔生理学或医学奖解读	"[
   {
-    ""info_source_type"": 2,
-    ""info_source_id"": ""67748456eee9135b1ce60f36"",
-    ""info_source_name"": ""翌派量化"",
-    ""info_source_profile"": ""https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/2atSWN4rfbhT1EGiq640PtfP.jpeg"",
-    ""info_source_profile_name"": ""翌派量化"",
-    ""last_update_time"": 1746013936,
-    ""info_source_root"": ""mp.weixin.qq.com"",
-    ""info_source_description"": ""可视化量化、策略分享、最新资讯、交易心得等"",
-    ""info_source_category"": 2,
-    ""rec_rank"": 0,
-    ""default_select"": false,
-    ""can_cancel"": true,
-    ""shield"": false,
-    ""is_ban"": false
+    ""kind"": ""get"",
+    ""type"": ""STDQ""
   }
-]"	深度解析量化策略与市场趋势	https://wcd-image-bucket-prod.oss-cn-zhangjiakou.aliyuncs.com/raw/feed_server/20250430225156_1917592761408901120_7373.png	2	61f13721daba4602a54f479e5b678493	True		2	10	False	"[
-  ""6812390c50ec085890d39d0d""
-]"
+]"	2025/10/7 9:17:12	True	https://podcasts.apple.com/cn/podcast/2025-%E8%AF%BA%E8%B4%9D%E5%B0%94%E7%94%9F%E7%90%86%E5%AD%A6%E6%88%96%E5%8C%BB%E5%AD%A6%E5%A5%96%E8%A7%A3%E8%AF%BB/id1163969355?i=1000730591375	https://www.ximalaya.com/sound/918433638	1759908307386	0	availableEpisodeCount,editorialArtwork,feedUrl,sellerInfo,upsell,userRating	artists,episodes,genres,participants,reviews,trailers	podcasts	listeners-also-subscribed,channel-top-paid-shows	15	15	-releaseDate	entitlements,showHero	zh-Hans-CN
+
    """
 
     source_schema = SourceSQLSchema(

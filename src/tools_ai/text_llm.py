@@ -10,7 +10,7 @@ llm = None
 def qwen_invoke(sentence):
     global llm
     if not llm:
-        llm = Ollama(base_url="http://192.168.1.2:11434", model="qwen2.5:14b")
+        llm = Ollama(base_url="http://192.168.1.2:11434", model="qwen3:14b")
     # acquire reply content
     response = llm.invoke("以下句子换个表达，直接给出转换后的表达，无需解释：{}".format(sentence))
     print(response)

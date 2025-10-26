@@ -7,8 +7,8 @@ from pydantic_ai import Agent, ModelRetry, RunContext
 from openai import OpenAI
 from typing import List
 from model_utils import model
-from tools_data_process.engine_url_pg import PostgresEngine
-from tools_ai.text_embedding import setup_embedding_model
+from src.tools_data_process.engine_url_pg import PostgresEngine
+from src.tools_ai.text_embedding import setup_embedding_model
 
 load_dotenv()
 

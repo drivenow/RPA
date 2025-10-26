@@ -2,8 +2,8 @@ from curl_cffi import requests
 from xml.etree import ElementTree
 import pandas as pd
 import os
-from tools_data_process.engine_mysql import MysqlEngine
-from tools_data_process.utils_path import get_root_media_save_path
+from src.tools_data_process.engine_mysql import MysqlEngine
+from src.tools_data_process.utils_path import get_root_media_save_path
 
 batch_urls_base_dir = get_root_media_save_path("homepage_url", None)[1]
 
@@ -26,6 +26,8 @@ def __get_url_weixin(topic_keyword):
         ["主页名称", "__biz"]].set_index("主页名称").T.to_dict()
     print(homepage_dict)
     result_df = result_dict[homepage_dict[topic_keyword]["__biz"]]
+    # debug 
+    # result_df = result_df[result_df["文章标题"]=="买卖压力度量，复权调整成交量之后，效果居然能有提升！"]
     url_dict = {}
     url_dict["title"] = result_df["文章标题"].values.tolist()
     url_dict["url"] = result_df["内容链接"].values.tolist()

@@ -5,7 +5,7 @@ from selenium.webdriver.common.keys import Keys
 import subprocess
 import time
 import os
-from tools_ai.text_llm import qwen_invoke
+from src.tools_ai.text_llm import qwen_invoke
 import random
 
 
@@ -14,9 +14,10 @@ def start_chrome():
     # 打开 Chrome 浏览器，chrome.exe --remote-debugging-port=9222 --user-data-dir="E:\selenium_chrome_profile"
     chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
-    user_data_dir = r"/selenium_tools/ChromeProfile"
+    user_data_dir = r"X:/RPA/selenium_tools/ChromeProfile1"
 
     command = f'"{chrome_path}" --remote-debugging-port=9222 --user-data-dir="{user_data_dir}"'
+    print(command)
 
     try:
 
@@ -38,7 +39,7 @@ def connect_chrome():
     # 使用 ChromeDriver 连接现有浏览器
     # 自动下载并使用正确版本的 ChromeDriver
     # service = Service(ChromeDriverManager().install())
-    service = Service("/selenium_tools/chromedriver-win64/chromedriver.exe")
+    service = Service("./selenium_tools/chromedriver-win64/chromedriver.exe")
     driver = webdriver.Chrome(service=service,
                               options=chrome_options)
     return driver
@@ -46,10 +47,13 @@ def connect_chrome():
 
 def kimi_file_summary(driver, kimi_url, file_list):
     # 访问目标网站
+    print(1)
     driver.get(kimi_url)  # 替换成实际的上传页面
+    print(2)
 
     # 等待页面加载（可选）
     driver.implicitly_wait(10)
+    print(3)
 
     for file_path in file_list:
         # 找到上传文件的 <input> 元素（替换 ID 或 XPATH）
@@ -82,7 +86,7 @@ if __name__ == '__main__':
     driver = connect_chrome()
 
     kimi_url = "https://kimi.moonshot.cn/chat/cu1obohdjjpkrd6v81h0"
-    base_dir = r"/bili2text/outputs/比亚迪汉L 电机原理"
+    base_dir = r"X:\RAG_192.168.1.2\rag_data\stone记"
     file_list = os.listdir(base_dir)
     file_list = [os.path.join(base_dir, file) for file in file_list]
     print(file_list)

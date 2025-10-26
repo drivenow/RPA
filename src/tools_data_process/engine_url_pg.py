@@ -9,12 +9,18 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
+from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from openai import AsyncOpenAI
 import psycopg2
 from psycopg2 import sql
 import pandas as pd
-from tools_data_process.utils_format_text import parse_json_markdown,format_folder_name
-from tools_data_process.utils_path import get_root_media_save_path, get_project_root
+from src.tools_data_process.utils_format_text import (
+    parse_json_markdown,
+    format_folder_name,
+)
+from src.tools_data_process.utils_path import get_root_media_save_path, get_project_root
+from src.tools_data_process.utils_html_lazy_picture import normalize_lazy_images, fix_strikethrough_html
+from src.tools_data_process.utils_format_pdf import html_to_pdf
 
 
 class PostgresEngine:
@@ -32,7 +38,7 @@ class PostgresEngine:
             user="postgres",
             password="ybsDW246401.",
             host="localhost",
-            port="5432"
+            port="5432",
         )
         self.cursor = self.conn.cursor()
 
@@ -69,15 +75,30 @@ class PostgresEngine:
                     filter := '{"source": "ai.pydantic.dev"}'::jsonb
                 )
                 """,
-                (query_embedding, 5)
+                (query_embedding, 5),
             )
 
             # 获取结果（假设返回多行）
             result = self.cursor.fetchall()
             # 将result转换为结构化输出
             result = [
-                dict(zip(['id', 'url', 'chunk_number', 'title', 'summary', 'content', 'metadata', 'similarity'], row))
-                for row in result]
+                dict(
+                    zip(
+                        [
+                            "id",
+                            "url",
+                            "chunk_number",
+                            "title",
+                            "summary",
+                            "content",
+                            "metadata",
+                            "similarity",
+                        ],
+                        row,
+                    )
+                )
+                for row in result
+            ]
             print(f"检索到 {len(result)} 条记录")
             # 提交事务
             self.conn.commit()
@@ -100,17 +121,19 @@ load_dotenv()
 # os.environ['OPENAI_API_KEY'] = 'sk-CJpKFYcAMJYlKpn9721bD96f4aFc443b91D36aA0C2217a92'
 # os.environ['OPENAI_BASE_URL'] = 'http://192.168.1.2:11434/v1'
 # os.environ["LLM_MODEL"] = "qwen2.5:14b"
-os.environ['OPENAI_API_KEY'] = 'sk-CJpKFYcAMJYlKpn9721bD96f4aFc443b91D36aA0C2217a92'
-os.environ['OPENAI_BASE_URL'] = 'https://api.ai-yyds.com/v1'
+os.environ["OPENAI_API_KEY"] = "sk-CJpKFYcAMJYlKpn9721bD96f4aFc443b91D36aA0C2217a92"
+os.environ["OPENAI_BASE_URL"] = "https://api.ai-yyds.com/v1"
 os.environ["LLM_MODEL"] = "gpt-4o-mini"
-os.environ['OPENAI_BASE_URL'] = "https://api.siliconflow.cn/v1"
-os.environ['OPENAI_API_KEY'] = "sk-kcprjafyronffotrpxxovupsxzqolveqkypbmubjsopdbxec"
+os.environ["OPENAI_BASE_URL"] = "https://api.siliconflow.cn/v1"
+os.environ["OPENAI_API_KEY"] = "sk-kcprjafyronffotrpxxovupsxzqolveqkypbmubjsopdbxec"
 os.environ["LLM_MODEL"] = "Pro/deepseek-ai/DeepSeek-V3"
 # os.environ['OPENAI_BASE_URL'] = "https://api.deepseek.com"
 # os.environ['OPENAI_API_KEY'] = "sk-eb7b2844c60a4c88918a325417ac81f7"
 # model_name = "deepseek-chat"  # deepseek-reasoner
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
+openai_client = AsyncOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL")
+)
 
 
 @dataclass
@@ -141,22 +164,26 @@ def chunk_text(text: str, chunk_size: int = 5000) -> List[str]:
 
         # Try to find a code block boundary first (```)
         chunk = text[start:end]
-        code_block = chunk.rfind('```')
+        code_block = chunk.rfind("```")
         if code_block != -1 and code_block > chunk_size * 0.3:
             end = start + code_block
 
         # If no code block, try to break at a paragraph
-        elif '\n\n' in chunk:
+        elif "\n\n" in chunk:
             # Find the last paragraph break
-            last_break = chunk.rfind('\n\n')
-            if last_break > chunk_size * 0.3:  # Only break if we're past 30% of chunk_size
+            last_break = chunk.rfind("\n\n")
+            if (
+                last_break > chunk_size * 0.3
+            ):  # Only break if we're past 30% of chunk_size
                 end = start + last_break
 
         # If no paragraph break, try to break at a sentence
-        elif '. ' in chunk:
+        elif ". " in chunk:
             # Find the last sentence break
-            last_period = chunk.rfind('. ')
-            if last_period > chunk_size * 0.3:  # Only break if we're past 30% of chunk_size
+            last_period = chunk.rfind(". ")
+            if (
+                last_period > chunk_size * 0.3
+            ):  # Only break if we're past 30% of chunk_size
                 end = start + last_period + 1
 
         # Extract chunk and clean it up
@@ -187,11 +214,14 @@ async def get_title_and_summary(chunk: str, url: str) -> Dict[str, str]:
             model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"URL: {url}\n\nContent:\n{chunk[:1000]}..."}
+                {
+                    "role": "user",
+                    "content": f"URL: {url}\n\nContent:\n{chunk[:1000]}...",
+                },
                 # Send first 1000 chars for context
             ],
             # response_format={"type": "json_object"},
-            stream=False
+            stream=False,
         )
         # print(chunk)
         # print(111, response.choices[0].message.content)
@@ -200,9 +230,13 @@ async def get_title_and_summary(chunk: str, url: str) -> Dict[str, str]:
         return result
     except Exception as e:
         import traceback
+
         print(traceback.format_exc())
         print(f"Error getting title and summary: {e}")
-        return {"title": "Error processing title", "summary": "Error processing summary"}
+        return {
+            "title": "Error processing title",
+            "summary": "Error processing summary",
+        }
 
 
 async def get_embedding(text: str) -> List[float]:
@@ -210,8 +244,7 @@ async def get_embedding(text: str) -> List[float]:
     if False:
         try:
             response = await openai_client.embeddings.create(
-                model="text-embedding-3-small",  # 长度1536
-                input=text
+                model="text-embedding-3-small", input=text  # 长度1536
             )
             return response.data[0].embedding
         except Exception as e:
@@ -219,8 +252,9 @@ async def get_embedding(text: str) -> List[float]:
             return [0] * 1536  # Return zero vector on error
     else:
         try:
-            from tools_ai.text_embedding import setup_embedding_model
+            from src.tools_ai.text_embedding import setup_embedding_model
             import numpy as np
+
             retrieve_model, rerank_model = setup_embedding_model()
             embedding = retrieve_model.encode(text)
             return list(embedding.astype(float))
@@ -229,7 +263,9 @@ async def get_embedding(text: str) -> List[float]:
             return [0] * 1024  # Return zero vector on error
 
 
-async def process_chunk(chunk: str, chunk_number: int, topic_keyword: str, url: str) -> ProcessedChunk:
+async def process_chunk(
+    chunk: str, chunk_number: int, topic_keyword: str, url: str
+) -> ProcessedChunk:
     """Process a single chunk of text."""
     # Get title and summary
     extracted = await get_title_and_summary(chunk, url)
@@ -241,30 +277,32 @@ async def process_chunk(chunk: str, chunk_number: int, topic_keyword: str, url: 
         "source": topic_keyword,
         "chunk_size": len(chunk),
         "crawled_at": datetime.now(timezone.utc).isoformat(),
-        "url_path": urlparse(url).path
+        "url_path": urlparse(url).path,
     }
 
     return ProcessedChunk(
         url=url,
         chunk_number=chunk_number,
-        title=extracted['title'],
-        summary=extracted['summary'],
+        title=extracted["title"],
+        summary=extracted["summary"],
         content=chunk,  # Store the original chunk content
         metadata=metadata,
-        embedding=embedding
+        embedding=embedding,
     )
 
 
 async def insert_chunk(chunk: ProcessedChunk):
     """Insert a processed chunk into Supabase."""
     # 插入数据的 SQL 语句
-    query = sql.SQL("""
+    query = sql.SQL(
+        """
                INSERT INTO site_pages (
                    url, chunk_number, title, summary, content, metadata, embedding
                ) VALUES (
                    %s, %s, %s, %s, %s, %s, %s
                )
-           """)
+           """
+    )
 
     # 数据参数
     data = (
@@ -274,7 +312,7 @@ async def insert_chunk(chunk: ProcessedChunk):
         chunk.summary,
         chunk.content,
         json.dumps(chunk.metadata),
-        chunk.embedding
+        chunk.embedding,
     )
     rowcount = postgres_engine.insert_data(query, data)
     print(f"Inserted chunk {chunk.chunk_number} for {chunk.url} {rowcount}")
@@ -288,36 +326,104 @@ async def process_and_store_document(topic_keyword: str, url: str, markdown: str
 
     # Process chunks in parallel
     tasks = [
-        process_chunk(chunk, i, topic_keyword, url)
-        for i, chunk in enumerate(chunks)
+        process_chunk(chunk, i, topic_keyword, url) for i, chunk in enumerate(chunks)
     ]
     processed_chunks = await asyncio.gather(*tasks)
 
     # Store chunks in parallel
     insert_tasks = [
         insert_chunk(chunk)
-        for chunk in processed_chunks if chunk.title != "Error processing title"
+        for chunk in processed_chunks
+        if chunk.title != "Error processing title"
     ]
     await asyncio.gather(*insert_tasks)
 
 
-async def url_to_sql_vector(topic_keyword: str, topic_urls: List[str], topic_titles: List[str], max_concurrent: int = 5,
-                            save_markdown=True):
+async def url_to_sql_vector(
+    topic_keyword: str,
+    topic_urls: List[str],
+    topic_titles: List[str],
+    max_concurrent: int = 5,
+    save_markdown=True,
+):
     """Crawl multiple URLs in parallel with a concurrency limit."""
+    md_generator = DefaultMarkdownGenerator(
+        # 默认会把图片转成 ![](url)，无需特别开启
+        options={
+            "body_width": 0,        # 不自动换行
+            "ignore_links": False,  # 保留链接
+            # "ignore_images": False # 默认 False；若你之后单独处理图片可保持默认
+        }
+    )
     browser_config = BrowserConfig(
-        headless=True,
+        headless=False,
         use_managed_browser=True,
         text_mode=False,
+        light_mode=False,
         use_persistent_context=True,
-        user_data_dir=os.path.join(get_project_root(), "playwright_tools/chromedriver-win64/"),
+        user_data_dir=os.path.join(
+            get_project_root(), "playwright_tools/chromedriver-win64/"
+        ),
         browser_type="chromium",
-        proxy_config={
-            "server": "http://127.0.0.1:7897"
-        },
-        # cookies=new_cookies,
-        verbose=True
+        proxy_config={"server": "http://127.0.0.1:7897"},
+        cookies=[
+            {
+                "name": "_qpsvr_localtk",
+                "value": "0.1410898224631989",
+                "domain": ".qq.com",
+                "path": "/",
+                "secure": False,
+            },
+            {
+                "name": "RK",
+                "value": "DWGRylselU",
+                "domain": ".qq.com",
+                "path": "/",
+                "secure": False,
+                "expires": 1795933488,
+            },
+            {
+                "name": "ptcz",
+                "value": "6af696c1ea429cfa377e69d467c48897333486ce0a7bae83dcaa5d7cb401ae7b",
+                "domain": ".qq.com",
+                "path": "/",
+                "secure": False,
+                "expires": 1795958848,
+            },
+            {
+                "name": "rewardsn",
+                "value": "",
+                "domain": "mp.weixin.qq.com",
+                "path": "/",
+                "secure": False,
+            },
+            {
+                "name": "wxtokenkey",
+                "value": "777",
+                "domain": "mp.weixin.qq.com",
+                "path": "/",
+                "secure": False,
+            },
+            {
+                "name": "poc_sid",
+                "value": "HPbt_GijjAzKCxVYtjFks-YLqMJbbN0FeZwVkrPe",
+                "domain": "mp.weixin.qq.com",
+                "path": "/",
+                "secure": True,
+                "expires": 1763998458,
+            },
+        ],
+        verbose=True,
     )
-    crawl_config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
+    crawl_config = CrawlerRunConfig(
+        markdown_generator=md_generator,
+        cache_mode=CacheMode.BYPASS,
+        wait_for_images=True,
+        # pdf=True,
+        # screenshot=True,
+        scan_full_page=True,
+        scroll_delay = 0.6,
+    )
 
     # Create the crawler instance
     crawler = AsyncWebCrawler(config=browser_config)
@@ -328,48 +434,72 @@ async def url_to_sql_vector(topic_keyword: str, topic_urls: List[str], topic_tit
         semaphore = asyncio.Semaphore(max_concurrent)
 
         async def process_url(url: str, title: str):
-            voice_dir, text_save_path = get_root_media_save_path("crawl4ai", format_folder_name(topic_keyword))
+            voice_dir, text_save_path = get_root_media_save_path(
+                "crawl4ai", format_folder_name(topic_keyword)
+            )
             os.makedirs(text_save_path, exist_ok=True)
+            os.makedirs(os.path.join(text_save_path, "pdf"), exist_ok=True)
             file_name = format_folder_name(title) + ".txt"
-            if os.path.exists(os.path.join(text_save_path, file_name)) and os.path.getsize(
-                    os.path.join(text_save_path, file_name)) > 0:
+            if (
+                os.path.exists(os.path.join(text_save_path, file_name))
+                and os.path.getsize(os.path.join(text_save_path, file_name)) > 0
+            ):
                 print(f"Skip {title} .")
                 return
             async with semaphore:
                 try:
                     result = await crawler.arun(
-                        url=url,
-                        config=crawl_config,
-                        session_id="session1"
+                        url=url, config=crawl_config, session_id="session1"
                     )
                     if result.success:
                         print(f"Successfully crawled: {url}")
                         if save_markdown:
-                            with open(os.path.join(text_save_path, file_name), "w", encoding="utf-8") as f:
-                                f.write(result.markdown.raw_markdown)
-                        await process_and_store_document(topic_keyword, url, result.markdown.raw_markdown)
+                            with open(
+                                os.path.join(text_save_path, file_name),
+                                "w",
+                                encoding="utf-8",
+                            ) as f:
+                                # 解决图片懒加载的问题
+                                fixed_html = normalize_lazy_images(result.cleaned_html)
+                                fixed_html = fix_strikethrough_html(html = fixed_html)
+                                md_fixed = md_generator.generate_markdown(fixed_html).raw_markdown
+                                # 将html存储为pdf文件
+                                html_to_pdf(fixed_html, os.path.join(text_save_path, "pdf", file_name.replace(".txt", ".pdf")))
+                                f.write(md_fixed if md_fixed else result.markdown.raw_markdown)
+                        await process_and_store_document(
+                            topic_keyword, url, result.markdown.raw_markdown
+                        )
                     else:
                         print(f"Failed: {url} - Error: {result.error_message}")
-                except  Exception as e:
+                except Exception as e:
                     print(f"ERROR: Failed: {title} - {url}- Error: {e}")
 
         # Process all URLs in parallel with limited concurrency
-        await asyncio.gather(*[process_url(url, title) for url, title in zip(topic_urls, topic_titles)])
+        await asyncio.gather(
+            *[process_url(url, title) for url, title in zip(topic_urls, topic_titles)]
+        )
     finally:
         await crawler.close()
 
 
 if __name__ == "__main__":
-    from tools_browser.fetch_detail_batch_urls import get_batch_urls
+    from src.tools_browser.fetch_detail_batch_urls import get_batch_urls
 
     # urls, titles, keywords = get_batch_urls(sitemap_url="https://ai.pydantic.dev/sitemap.xml")
     # urls, titles, keywords = get_batch_urls(sitemap_url="gkdata")
     batch_urls_base_dir = get_root_media_save_path("homepage_url", None)[1]
     weixin_df = pd.read_excel(os.path.join(batch_urls_base_dir, r"home_page_url.xlsx"))
+    weixin_df = weixin_df.iloc[-1:]
+    print(weixin_df)
     for homepage_name in weixin_df["主页名称"]:
-        batch_urls, batch_titles, keywords = get_batch_urls(sitemap_url=f"weixin_{homepage_name}")
+        batch_urls, batch_titles, keywords = get_batch_urls(
+            sitemap_url=f"weixin_{homepage_name}"
+        )
         print(batch_urls, batch_titles, keywords)
-        asyncio.run(url_to_sql_vector(keywords, batch_urls, batch_titles, max_concurrent=2,
-                                      save_markdown=True))
+        asyncio.run(
+            url_to_sql_vector(
+                keywords, batch_urls, batch_titles, max_concurrent=2, save_markdown=True
+            )
+        )
 
     # postgres_engine.query_vector([0.9] * 1024, "ai.pydantic.dev")

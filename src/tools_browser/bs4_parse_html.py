@@ -192,6 +192,6 @@ if __name__ == '__main__':
     # print(response.text)  # 打印前500个字符
 
     # 保存结果到Excel文件
-    # from tools_data_process.to_excel import dict_to_excel
+    # from src.tools_data_process.to_excel import dict_to_excel
     # write_path = '../data/bili_search_result.xlsx'
     # dict_to_excel(result, write_path)
