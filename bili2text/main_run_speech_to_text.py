@@ -1,13 +1,31 @@
 import os
-import whisper
-from tools_ai.text_llm import deepseek_invoke, qwen_revise_text
-from tools_data_process.utils_path import get_root_media_save_path
+from src.tools_ai.text_llm import deepseek_invoke, qwen_revise_text
+from src.tools_data_process.utils_path import get_root_media_save_path
 import ray
 from tqdm import tqdm
-
-whisper_model = None
+from speech2text import run_speech_to_text
 chat_model = deepseek_invoke
 corret_text_model = qwen_revise_text
+def _sanitize_filename(value: str) -> str:
+    """Normalize text for filesystem usage."""
+    sanitized = (value or "").strip()
+    for old, new in [
+        ("?", ""),
+        ("*", ""),
+        ("<", ""),
+        (",", " "),
+        (".", ""),
+        (";", ""),
+        (":", ""),
+        (">", ""),
+        ("|", ""),
+        ("\"", ""),
+    ]:
+        sanitized = sanitized.replace(old, new)
+    sanitized = sanitized.replace("/", "_")
+    return sanitized or "transcript"
+
+
 
 
 def convert_audio_format(audio_file, output_file):
@@ -36,9 +54,6 @@ def convert_audio_to_text(voice_dir, text_output_dir, text_output_file_name, fla
     :param target_filelist: str列表，指定要转换的音频文件名
     :return:
     """
-    global whisper_model
-    if not whisper_model:
-        whisper_model = whisper.load_model("large-v2", device="cuda")
     os.makedirs(text_output_dir, exist_ok=True)
     for first_level_path_name in os.listdir(voice_dir):
         try:
@@ -59,9 +74,12 @@ def convert_audio_to_text(voice_dir, text_output_dir, text_output_file_name, fla
             for fn in audio_list:
                 print(f"正在转换第{i}/{len(audio_list)}个音频... {fn}")
                 # 识别音频
-                result = whisper_model.transcribe(f"{voice_dir}/{fn}", initial_prompt="以下是普通话的句子。")
-                result_text = "".join([i["text"] for i in result["segments"] if i is not None])
-                print(result_text)
+                result_text = run_speech_to_text(
+                    title=first_level_path_name.split(".")[0],
+                    audio_split_folder=f"{voice_dir}/{fn}",
+                    text_save_path=text_output_dir,
+                    engine="funasr"
+                )
 
                 if flag0_rename_voice_file:
                     # 指定M4A文件路径
@@ -75,15 +93,12 @@ def convert_audio_to_text(voice_dir, text_output_dir, text_output_file_name, fla
                     convert_audio_format(m4a_file, wav_file)
 
                 # 保存结果到文件
-                filename = eval(text_output_file_name).strip(). \
-                    replace("?", "").replace("*", "").replace("<", ""). \
-                    replace(",", " ").replace(".", "").replace(";", ""). \
-                    replace(":", "").replace(">", "").replace("|", "").replace("\"", "")
-                with open(f"{text_output_dir}/{filename}.txt", "a", encoding="utf-8") as f:
-                    content = "".join([i["text"] for i in result["segments"] if i is not None])
-                    lines = content.split("。")
-                    for line in lines:
-                        f.write(line + "。\r\n")
+                # filename = _sanitize_filename(eval(text_output_file_name))
+                # with open(f"{text_output_dir}/{filename}.txt", "a", encoding="utf-8") as f:
+                #     content = "".join([i["text"] for i in result["segments"] if i is not None])
+                #     lines = content.split("。")
+                #     for line in lines:
+                #         f.write(line + "。\r\n")
                 i += 1
         except:
             import traceback
@@ -185,7 +200,7 @@ def judge_text_type(sheet_name):
 
 
 if __name__ == '__main__':
-    media_type = "bili"
+    media_type = "phone_record"
     sheet_name = "像素范"
     voice_dir, text_output_dir = get_root_media_save_path(media_type, sheet_name)
 
@@ -206,7 +221,7 @@ if __name__ == '__main__':
         flag3_corret_text = False
     elif media_type == "phone_record":
         ##########################################################
-        target_filelist = ["t0策略规划.wav", "策略规划1.wav", "策略规划2.wav", "策略规划3.wav"][:1]
+        target_filelist = []#["t0策略规划.wav", "策略规划1.wav", "策略规划2.wav", "策略规划3.wav"][:1]
         text_output_file_name = "first_level_path_name"  # 输出文件名为源文件名
         flag0_rename_voice_file = False
         flag1_convert_text = True

@@ -296,6 +296,7 @@ def _transcribe_with_funasr(
 
     outputs: List[Dict[str, Any]] = []
     paths = list(audio_paths)
+    cumulative_offset_ms = 0
     for idx, audio_path in enumerate(tqdm(paths, desc="Transcribing (funasr)"), start=1):
         print(f"正在转换第{idx}个音频... {os.path.basename(audio_path)}")
         generate_kwargs = dict(default_generate)
@@ -316,6 +317,18 @@ def _transcribe_with_funasr(
             )
             if segments:
                 segments[0]["reset_block"] = True
+                # Keep timestamps continuous across split audio files.
+                for segment in segments:
+                    if segment.get("start") is not None:
+                        segment["start"] += cumulative_offset_ms
+                    if segment.get("end") is not None:
+                        segment["end"] += cumulative_offset_ms
+                last_end = next(
+                    (segment.get("end") for segment in reversed(segments) if segment.get("end") is not None),
+                    None,
+                )
+                if last_end is not None:
+                    cumulative_offset_ms = last_end
         outputs.append(
             {
                 "audio_path": audio_path,

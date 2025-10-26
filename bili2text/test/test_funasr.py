@@ -2,7 +2,7 @@ import os
 
 from funasr import AutoModel
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
-from tools_data_process.utils_path import get_root_media_save_path
+from src.tools_data_process.utils_path import get_root_media_save_path
 
 
 def get_whisper_model_dir():

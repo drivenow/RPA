@@ -9,7 +9,7 @@ import json
 from retrying import retry
 import subprocess
 import requests
-from tools_data_process.utils_path import get_project_root
+from src.tools_data_process.utils_path import get_project_root
 from platform import system
 
 HEADERS = {

@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from typing import Iterable, List, Optional
 import os
 import traceback
-from tools_data_process.engine_excel import ExcelEngine
-from tools_data_process.engine_mysql import MysqlEngine
-from tools_data_process.utils_path import get_root_media_save_path
-from tools_data_process.utils_path import get_media_url_excel_path
+from src.tools_data_process.engine_excel import ExcelEngine
+from src.tools_data_process.engine_mysql import MysqlEngine
+from src.tools_data_process.utils_path import get_root_media_save_path
+from src.tools_data_process.utils_path import get_media_url_excel_path
 from main_run_speech_to_text import summarize_text, judge_text_type
 
 
@@ -184,12 +184,16 @@ if __name__=="__main__":
     https://www.youtube.com/watch?v=9iRysdU_hBc
     【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI
     https://www.bilibili.com/video/BV1hNJ1zLEb8/?spm_id_from=333.337.search-card.all.click
+    
+    梁文锋作序|为什么量化投资爆火的今天 还值得深读西蒙斯?
+    https://www.xiaoyuzhoufm.com/episode/6895364b638b01587983c94a?utm_source=rss
     """
     pipeline = BiliSpeechPipeline()
     if True:
         # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
         # jobs = pipeline.build_jobs_from_excel("youtube_browser", "stone记")
-        jobs = pipeline.build_jobs_from_excel("podcasts", "科学有故事")
+        # jobs = pipeline.build_jobs_from_excel("podcasts", "科学有故事")
+        jobs = pipeline.build_jobs_from_excel("bili", "深读一书") # ，系统性思考
     else:
         jobs = [VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
             title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),

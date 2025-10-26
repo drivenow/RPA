@@ -65,7 +65,7 @@ def process_video_to_text(video_url, title, video_save_dir, audio_save_dir=None)
             content = run_speech_to_text(title, audio_split_folder, text_save_path,
                             prompt="以下是普通话的句子, 包含逗号、句号和感叹号。")
         else:
-            from tools_ai import whisper_processor 
+            from src.tools_ai import whisper_processor 
             # 处理音频
             run_split(title, video_save_dir, audio_save_folder, audio_split_folder, split=False)
             result = whisper_processor.process_audio(f"{audio_save_folder}/{title}.mp3", "large-v3-turbo-q8_0")

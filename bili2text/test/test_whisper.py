@@ -1,6 +1,6 @@
 import os
 from re import T
-from tools_data_process.utils_path import get_root_media_save_path
+from src.tools_data_process.utils_path import get_root_media_save_path
 from faster_whisper import WhisperModel
 from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 

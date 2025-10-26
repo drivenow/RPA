@@ -2,9 +2,9 @@ import json
 import pymysql
 import pandas as pd
 from datetime import datetime
-from tools_data_process.utils_format_text import format_text
-from tools_data_process.engine_excel import ExcelEngine
-from tools_data_process.utils_path import get_media_url_excel_path
+from src.tools_data_process.utils_format_text import format_text
+from src.tools_data_process.engine_excel import ExcelEngine
+from src.tools_data_process.utils_path import get_media_url_excel_path
 
 # 数据库连接类
 class MysqlEngine:
@@ -80,6 +80,7 @@ class MysqlEngine:
         DATE_FORMAT(gk_createtime, '%Y-%m-%d') AS 采集时间,
         DATE_FORMAT(pubdate, '%Y-%m-%d') AS 发布时间,
         keyword AS 搜索词,
+        url AS url,
         author AS 作者,
         title AS 标题,
         tag AS 标签,
@@ -99,7 +100,6 @@ class MysqlEngine:
         mid AS mid,
         upic AS upic,
         `desc` AS `desc`,
-        url AS url,
         page AS page,
         season_id AS season_id
 
@@ -128,6 +128,8 @@ class MysqlEngine:
                         # print(poster)
                     except:
                         poster = x["mid"]
+                elif x["作者"]:
+                    poster = x["作者"]
                 else:
                     poster = x["mid"]
                 return poster
