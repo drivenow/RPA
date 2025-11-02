@@ -20,7 +20,7 @@ from src.tools_data_process.utils_format_text import (
 )
 from src.tools_data_process.utils_path import get_root_media_save_path, get_project_root
 from src.tools_data_process.utils_html_lazy_picture import normalize_lazy_images, fix_strikethrough_html
-from src.tools_data_process.utils_format_pdf import html_to_pdf
+from src.tools_data_process.utils_format_pdf import html_to_pdf, html_to_pdf_new
 
 
 class PostgresEngine:
@@ -356,7 +356,7 @@ async def url_to_sql_vector(
         }
     )
     browser_config = BrowserConfig(
-        headless=False,
+        headless=True,
         use_managed_browser=True,
         text_mode=False,
         light_mode=False,
@@ -464,7 +464,7 @@ async def url_to_sql_vector(
                                 fixed_html = fix_strikethrough_html(html = fixed_html)
                                 md_fixed = md_generator.generate_markdown(fixed_html).raw_markdown
                                 # 将html存储为pdf文件
-                                html_to_pdf(fixed_html, os.path.join(text_save_path, "pdf", file_name.replace(".txt", ".pdf")))
+                                html_to_pdf_new(fixed_html, os.path.join(text_save_path, "pdf", file_name.replace(".txt", ".pdf")))
                                 f.write(md_fixed if md_fixed else result.markdown.raw_markdown)
                         await process_and_store_document(
                             topic_keyword, url, result.markdown.raw_markdown
@@ -501,5 +501,4 @@ if __name__ == "__main__":
                 keywords, batch_urls, batch_titles, max_concurrent=2, save_markdown=True
             )
         )
-
     # postgres_engine.query_vector([0.9] * 1024, "ai.pydantic.dev")

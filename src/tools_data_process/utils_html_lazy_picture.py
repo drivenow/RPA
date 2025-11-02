@@ -442,6 +442,7 @@ def fix_strikethrough_html(html: str) -> str:
     # 可选的正则预清理：把 “<s ection” 还原成 "<section"
     html = re.sub(r"<\s*s\s+ection", "<section", html, flags=re.I)
     html = re.sub(r"</\s*s\s*>", "", html, flags=re.I)  # 清掉误关闭的 </s>
+    html = html.replace(u'\xa0', ' ')
 
     # 用 html5lib 增强容错，自动补全闭合
     soup = BeautifulSoup(html, "lxml")

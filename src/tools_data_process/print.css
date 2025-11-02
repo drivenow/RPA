@@ -1,0 +1,105 @@
+/* =========================
+   页面与基础排版
+   ========================= */
+@page {
+  size: A4 portrait;
+  margin: 15mm; /* 上下左右统一边距 */
+}
+
+body {
+  font-family: "Noto Sans CJK SC", sans-serif;
+  font-size: 12pt;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0;
+  color: #333;
+}
+
+/* 图片：自适应宽度、避免分页中断 */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 10px auto;
+  page-break-inside: avoid;
+}
+
+/* 可选容器示例 */
+.chart-container {
+  width: 100%;
+  max-width: 180mm;
+  margin: 0 auto;
+}
+
+/* 需要整体在一页内的块，按需加上这个类 */
+.keep-together {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* 标题与链接 */
+h1, h2, h3 {
+  color: #111;
+  margin: 1em 0 .5em;
+}
+
+a {
+  color: #0066cc;
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+/* ============ 
+   标签重置
+   ============ */
+/* 富文本常见的过度包裹：让其尽量别干扰换行与样式 */
+span {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  color: inherit !important;
+}
+
+/* 不要全局禁止分页（避免整块被挤掉） */
+section {
+  /* 如果确实需要局部避免分页，请给该 section 加 .keep-together */
+}
+
+/* =========================
+   代码块（关键修正）
+   ========================= */
+/* 只给 <pre> 设背景/边框/内边距；允许换行与强制断行 */
+pre {
+  white-space: pre-wrap;        /* 按空白折行 */
+  overflow-wrap: anywhere;      /* 无断点也强制断行 */
+  word-break: break-word;       /* 兼容兜底 */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  background: #f9f9f9;
+  padding: .75em;
+  border: 1px solid #ddd;
+  margin: 1em 0;
+  box-sizing: border-box;
+  page-break-inside: auto;      /* 允许跨页 */
+}
+
+/* 取消内层 <code> 以及其子元素的边框/背景/内外边距，避免“小方块拼图” */
+pre code,
+pre code * {
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+/* <code> 保持行内并继承 <pre> 的换行规则与字体 */
+pre code {
+  display: inline;
+  white-space: inherit !important;
+  font-family: inherit !important;
+  color: inherit !important;
+}
