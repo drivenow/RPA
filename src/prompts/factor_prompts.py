@@ -27,12 +27,13 @@ PROMPT_CODE = """
 
 #### （1）函数输入
 *   唯一参数：`depend_data`，数据类型为`dict`；
-*   `dict`的 key：因子计算依赖的数据的简称， 必须是`params`中`depend_fields`的元素，
-*   新增数据源：如果依赖的数据未在现有的数据范围内，可以按照模板中格式新增数据源，必须保持依赖数据的格式和因子模板中现有的数据源格式一致；
+    -   `dict`的 key：因子计算依赖的数据的简称， 必须是`params`中`depend_fields`的元素，
+    -   `dict`的 value：数据对应的值，值的格式如下：
+       (1) **日频数据**：`pandas.DataFrame`，行索引为`date`（长度 = `day_lag + 1`），列索引为股票代码；
+       (2) **分钟数据**：`pandas.DataFrame`，行索引为`datetime`（长度 = 242\*(day\_lag + 1)，对应 A 股每日 242 个交易分钟），列索引为股票代码。
+*   数据源：当前支持如下的日频数据和分钟数据，如果需要新增，可以按照模板中depend_data格式新增更多数据源，必须保持依赖数据的格式符合depend_data中格式；
 
-当前支持的数据包括：
-
-| 数据类型 | 字段简称 | 字段描述 |
+| 当前支持的数据类型 | 字段简称 | 字段描述 |
 | --- | --- | --- |
 | 分钟数据 | open_min | 分钟频开盘价 |
 | 分钟数据 | close_min | 分钟频收盘价 |
@@ -50,14 +51,9 @@ PROMPT_CODE = """
 | 日频数据 | turn | 日频换手率 |
 | 日频数据 | mkt | 市值 |
 
-*   `dict`的 value：数据对应的值，值的格式如下：
-    *   **日频数据**：`pandas.DataFrame`，行索引为`date`（长度 = `day_lag + 1`），列索引为股票代码；
-    *   **分钟数据**：`pandas.DataFrame`，行索引为`datetime`（长度 = 242\*(day\_lag + 1)，对应 A 股每日 242 个交易分钟），列索引为股票代码。
     
 #### （2）函数输出
-*   数据类型：`pandas.Series`；
-*   索引：股票代码；
-*   值：对应股票的当日因子计算结果；
+*   数据类型：`pandas.Series`；索引：股票代码；值：对应股票的当日因子计算结果；
 *   示例输出格式：
 ``` python
 code
@@ -72,11 +68,11 @@ dtype: float64
 *   需添加关键步骤注释，说明数据提取、核心计算、结果处理等逻辑；
 *   必须处理常见数据异常（分母为 0 时的结果处理、含 NaN 计算的合理性保障等）；
 *   如果因子函数逻辑过于复杂，可将相对独立的逻辑单独封装为子函数，在 cal_factor_for_signal_day_all_stocks 中调用。
-*   如果依赖的数据未在现有的数据范围内，可以按照最接近现有模板的数据定义方式，新增数据源，保持依赖数据的格式和因子模板中原有的数据格式一致；
 
 ## 三、输出格式约束与示例
 
-需以**JSON 格式**输出，示例如下：
+严格以**JSON 格式**输出，不添加任何多余注释或文本。
+示例如下：
 
 示例1：
 
@@ -115,24 +111,7 @@ dtype: float64
   "code": "import pandas as pd\nimport numpy as np\n\ndef cal_factor_for_signal_day_all_stocks(depend_data):\n    # 从depend_data中获取相关分钟级数据\n    amt = depend_data[\"amount_min\"]\n    volume = depend_data[\"volume_min\"].replace(0, np.nan)\n    close = depend_data[\"close_min\"].values\n\n    # 提取成交量和成交金额的数值\n    vol = volume.values\n    am = amt.values\n\n    # 计算收盘价的80分位数作为条件\n    condition = (close > np.nanpercentile(close, 80, axis=0))\n    # 计算加权均价（仅满足条件的部分）\n    wap_top = np.nansum(am * condition, axis=0) / np.nansum(vol * condition, axis=0)\n    # 计算整体加权均价\n    wap_all = np.nansum(am, axis=0) / np.nansum(vol, axis=0)\n\n    # 将加权均价转换为Series，索引为成交量的列名\n    wap_top = pd.Series(wap_top, index=volume.columns)\n    wap_all = pd.Series(wap_all, index=volume.columns)\n\n    # 计算两者的比值\n    ratio = wap_top / wap_all\n    # 对比值进行降序排名（类似分位数排名）\n    return ratio.rank(pct=True, ascending=False)\n"
 }
 ```
-    
-
-示例3：
-
-输入： 过去十天换手率的标准差
-
-输出： 
-``` json
-{
-  "params": {
-    "day_lag": 9,
-    "depend_fields": [
-      "turn"
-    ]
-  },
-  "code": "import numpy as np\nimport pandas as pd\n\ndef cal_factor_for_signal_day_all_stocks(depend_data):  \n    # 从depend_data中获取加载的数据\n    turn = depend_data[\"turn\"].replace(0, np.nan)  \n    std = turn.std(axis=0)\n    return std\n"
-}
-```
+  
 """
 
 PROMPT_LOGIC = """请你以专业量化研究员的身份，基于传入文档内的资料完成量化因子信息收集工作，需严格满足以下规范要求：
@@ -141,7 +120,8 @@ PROMPT_LOGIC = """请你以专业量化研究员的身份，基于传入文档�
     a. "factor_name"：量化因子的标准名称（直接采用资料中明确标注的名称，如资料中无统一名称则基于核心逻辑提炼并注明）；
     b. "calculation_description"：计算过程，需详细拆解具体步骤，明确标注基础指标（如收盘价、成交量）、运算方法（如移动平均周期、相关系数类型、回归修正方式等），确保步骤可复现、逻辑无歧义；
     c. "core_logic"：因子意义，准确阐释因子衡量的核心逻辑，不额外延伸资料外的投资价值。
-3. 输出格式：严格以 JSON 格式输出，单个因子对应一个字典，所有因子字典组成列表；若资料中未提及任何量化因子，直接返回空列表（[]），不添加任何多余注释或文本。
+3. 输出格式：严格以 JSON 格式输出，不添加任何多余注释或文本。单个因子对应一个字典，所有因子字典组成列表；若资料中未提及任何量化因子，直接返回空列表（[]）。
+4. 请用中文来生成回答。
 
 
 """

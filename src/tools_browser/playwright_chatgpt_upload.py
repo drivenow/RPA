@@ -124,27 +124,16 @@ def _boot_playwright_persistent(user_data_dir: str, headless: bool = False):
 def _goto(page, url: str):
     page.goto(url, wait_until="domcontentloaded")
 
-
 def _start_new_chat(page) -> None:
-    """
-    Click "New chat" to ensure a clean composer. Try several selectors then fallback to reload.
-    """
-    candidates = [
-        lambda: page.get_by_role("button", name=re.compile(r"New chat|新对话", re.I)),
-        lambda: page.locator("button:has-text('New chat')"),
-        lambda: page.locator("button:has-text('新对话')"),
-    ]
-    for fn in candidates:
-        try:
-            btn = fn()
-            btn.first.wait_for(state="visible", timeout=3000)
-            btn.first.click()
-            page.wait_for_timeout(800)
-            return
-        except Exception:
-            continue
-    page.reload()
+# 2) 点 `<a data-testid="create-new-chat-button">`
+    link = page.get_by_test_id("create-new-chat-button").first
+    link.focus()
+    page.keyboard.press("Control+Shift+O")          # 或 Windows/Linux: Ctrl+Shift+O；mac: Meta+Shift+O
+
+
+    page.reload(wait_until="networkidle")
     page.wait_for_timeout(1500)
+
 
 
 def _find_prompt_input(page):
@@ -530,7 +519,7 @@ def _export_summary_and_transcript(
     if prompt:
         _write_text(
             summary_path,
-            meta + "### Prompt\n" + prompt + "\n\n### Assistant Reply\n" + answer,
+            answer,
         )
     else:
         _write_text(summary_path, answer)
@@ -568,8 +557,7 @@ def chatgpt_file_summary(
 ) -> List[Tuple[str, str]]:
     _goto(page, chatgpt_url)
     results: List[Tuple[str, str]] = []
-
-    for file_path in file_list:
+    for fidx,file_path in enumerate(file_list):
         if True:
             fname = os.path.basename(file_path)
             safe_base = _sanitize_filename(os.path.splitext(fname)[0])
@@ -581,69 +569,74 @@ def chatgpt_file_summary(
                 continue
 
             print(f"[Info] 处理文件: {fname}")
-            _start_new_chat(page)
-            _clear_uploaded_attachments(page)
+            if not fname.endswith("txt") and not fname.endswith("md"):
+                if fidx%10==0:
+                    _start_new_chat(page)
+                _clear_uploaded_attachments(page)
 
-            # 1) open the plus/menu -> click "Add photos & files" (or zh)
-            # Use role=button then role=menuitem with regex names
-            plus_candidates = [
-                page.locator("#composer-plus-btn"),
-                page.locator("[data-testid='composer-plus-btn']"),
-                page.get_by_role("button", name=re.compile(r"Add|添加|\+", re.I)),
-            ]
-            clicked_plus = False
-            for loc in plus_candidates:
-                try:
-                    loc.wait_for(state="visible", timeout=3000)
-                    loc.click()
-                    clicked_plus = True
-                    break
-                except Exception:
-                    continue
-            if not clicked_plus:
-                # try a generic popup menu button
-                try:
-                    page.locator("button[aria-haspopup='menu']").first.click(
-                        timeout=3000
-                    )
-                    clicked_plus = True
-                except Exception:
-                    pass
+                # 1) open the plus/menu -> click "Add photos & files" (or zh)
+                # Use role=button then role=menuitem with regex names
+                plus_candidates = [
+                    page.locator("#composer-plus-btn"),
+                    page.locator("[data-testid='composer-plus-btn']"),
+                    page.get_by_role("button", name=re.compile(r"Add|添加|\+", re.I)),
+                ]
+                clicked_plus = False
+                for loc in plus_candidates:
+                    try:
+                        loc.wait_for(state="visible", timeout=3000)
+                        loc.click()
+                        clicked_plus = True
+                        break
+                    except Exception:
+                        continue
+                if not clicked_plus:
+                    # try a generic popup menu button
+                    try:
+                        page.locator("button[aria-haspopup='menu']").first.click(
+                            timeout=3000
+                        )
+                        clicked_plus = True
+                    except Exception:
+                        pass
 
-            if not clicked_plus:
-                raise RuntimeError("找不到“+”动作菜单按钮")
+                if not clicked_plus:
+                    raise RuntimeError("找不到“+”动作菜单按钮")
 
-            # 2) Expect a file chooser from the menu item click
-            menuitem = None
-            for loc in [
-                page.get_by_role(
-                    "menuitem",
-                    name=re.compile(
-                        r"(?:Add photos.*files|Add files|添加照片和文件|添加文件)", re.I
+                # 2) Expect a file chooser from the menu item click
+                menuitem = None
+                for loc in [
+                    page.get_by_role(
+                        "menuitem",
+                        name=re.compile(
+                            r"(?:Add photos.*files|Add files|添加照片和文件|添加文件)", re.I
+                        ),
                     ),
-                ),
-                page.locator("div[role='menuitem']:has-text('Add files')"),
-                page.locator("div[role='menuitem']:has-text('添加照片和文件')"),
-            ]:
-                try:
-                    loc.first.wait_for(state="visible", timeout=5000)
-                    menuitem = loc.first
-                    break
-                except Exception:
-                    continue
-            if menuitem is None:
-                raise RuntimeError("找不到“添加照片和文件 / Add files”菜单项")
+                    page.locator("div[role='menuitem']:has-text('Add files')"),
+                    page.locator("div[role='menuitem']:has-text('添加照片和文件')"),
+                ]:
+                    try:
+                        loc.first.wait_for(state="visible", timeout=5000)
+                        menuitem = loc.first
+                        break
+                    except Exception:
+                        continue
+                if menuitem is None:
+                    raise RuntimeError("找不到“添加照片和文件 / Add files”菜单项")
 
-            with page.expect_file_chooser() as fc_info:
-                menuitem.click()
-            file_chooser = fc_info.value
-            file_chooser.set_files(file_path)  # <-- reliably triggers change event
+                with page.expect_file_chooser() as fc_info:
+                    menuitem.click()
+                file_chooser = fc_info.value
+                file_chooser.set_files(file_path)  # <-- reliably triggers change event
 
-            # 3) wait for upload to complete
-            _wait_for_upload_complete(page, timeout_sec=UPLOAD_TIMEOUT_SEC)
+                # 3) wait for upload to complete
+                _wait_for_upload_complete(page, timeout_sec=UPLOAD_TIMEOUT_SEC)
+                # 4) send the summary prompt and wait
+                prompt = f"{summary_prompt}"
+            else:
+                prompt = f"{summary_prompt} \n 用户输入为：\n{open(file_path, 'r', encoding='utf-8').read()}"
 
-            # 4) send the summary prompt and wait
-            prompt = f"{summary_prompt}\n文件名：{fname}"
+  
             try:
                 answer = _send_prompt_and_wait(
                     page, prompt, reply_timeout_sec=reply_timeout_sec
@@ -803,12 +796,12 @@ if __name__ == "__main__":
         if args.profile_dir is None
         else args.profile_dir
     )  # 运行时实例的根目录, 用于存放用户浏览器数据
-    # BASE_DIR = r"X:/RAG_192.168.1.2/rag_data/yinzirili_pdf_images/" if args.base_filelist_dir is None else args.base_filelist_dir
-    BASE_FILELIST_DIR = (
-        r"X:/RAG_192.168.1.2/rag_data/量化拯救散户/"
-        if args.base_filelist_dir is None
-        else args.base_filelist_dir
-    )
+    BASE_FILELIST_DIR = r"X:/RAG_192.168.1.2/rag_data/yinzirili_pdf_images/" if args.base_filelist_dir is None else args.base_filelist_dir
+    # BASE_FILELIST_DIR = (
+    #     r"X:/RAG_192.168.1.2/rag_data/量化拯救散户/"
+    #     if args.base_filelist_dir is None
+    #     else args.base_filelist_dir
+    # )
     BASE_NAME = os.path.basename(BASE_FILELIST_DIR.strip("/\\"))
     EXPORT_DIR = os.path.join(
         r"X:/RAG_192.168.1.2/rag_data/{}".format(PROMPT), BASE_NAME

@@ -8,6 +8,8 @@ Thumbs.db
 .trae/
 *.iml
 
+whisper.cpp/
+
 # Python bytecode and caches
 __pycache__/
 *.py[cod]
@@ -93,11 +95,12 @@ video_output/
 *.ts
 *.webm
 yt-dlp.exe
+yt-dlp
 
 # Cookies / credentials
 *cookies*.txt
+*cookies*.json
 bili_cookies.txt2
-cookies.json
 *.pem
 *.key
 *.crt
@@ -110,3 +113,6 @@ playwright_tools/
 selenium_tools/
 leidian_phones/
 temp_to_compact/
+tt.py
+legancy/
+playwright/

@@ -70,7 +70,9 @@ dependencies = [
     "selenium==4.37.0",
     "crawl4ai==0.7.6",
     "psycopg2-binary==2.9.11",
-    "pdfkit==1.0.0"
+    "pdfkit==1.0.0",
+    "markdownify==1.2.0",
+    "pypandoc==1.15"
 ]
 
 
