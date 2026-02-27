@@ -2,6 +2,7 @@ import os
 import io
 import ssl
 import urllib
+from platform import system
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -10,7 +11,25 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import Encoding
 from datetime import datetime, timedelta
 from page_renderer import PageRenderer
-from src.tools_data_process.utils_path import get_media_root
+
+def get_media_root():
+    if system() == "Windows":
+        if os.path.exists("X:\\RAG\\"):
+            base_dir = "X:\\RAG\\"
+        elif os.path.exists("E:\\RAG\\"):
+            base_dir = "E:\\RAG\\"   
+        elif os.path.exists("X:\\RAG_192.168.1.2"):
+            base_dir = "X:\\RAG_192.168.1.2\\"
+        else:
+            raise ValueError("未找到有效路径")
+    else:   
+        if os.path.exists("/mnt/x/RAG_192.168.1.2"):
+            base_dir = "/mnt/x/RAG_192.168.1.2/"
+        elif os.path.exists("/mnt/e/RAG"):
+            base_dir = "/mnt/e/RAG/"
+        else:
+            raise ValueError("未找到有效路径")
+    return base_dir
 
 class SecureHTTPRequestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, directory=get_media_root(), **kwargs):

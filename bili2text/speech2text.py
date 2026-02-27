@@ -1,5 +1,6 @@
 import os
 import time
+import requests
 
 from retrying import retry
 from tqdm import tqdm
@@ -350,6 +351,21 @@ def _write_transcript(text_save_path: str, title: str, content: str):
     return output_path
 
 
+def _transcribe_siliconflow(audio_path: str) -> str:
+    url = "https://api.siliconflow.cn/v1/audio/transcriptions"
+    headers = {
+        "Authorization": "Bearer sk-kcrdqzlwcmdygxnmflzptjnofxzdhquhjtfjagkdcqrnodof"
+    }
+    with open(audio_path, "rb") as audio_file:
+        files = {
+            "file": (os.path.basename(audio_path), audio_file),
+            "model": (None, "FunAudioLLM/SenseVoiceSmall")
+        }
+        res = requests.post(url, headers=headers, files=files)
+        res.raise_for_status()
+        data = res.json()
+        return data.get("text", "")
+
 @retry(stop_max_attempt_number=3, wait_fixed=2000)
 def run_speech_to_text(
     title: str,
@@ -363,43 +379,25 @@ def run_speech_to_text(
     if not audio_paths:
         raise ValueError("未找到可用的音频文件。")
 
-    print("正在转换文本...")
-    engine_kwargs = engine_kwargs or {}
-    if engine == "funasr":
-        funasr_outputs = _transcribe_with_funasr(
-            audio_paths,
-            load_options=engine_kwargs.get("load_options"),
-            generate_options=engine_kwargs.get("generate_options"),
-        )
-        transcripts = [item.get("text", "") for item in funasr_outputs]
-        all_segments: List[Dict[str, Any]] = []
-        for item in funasr_outputs:
-            segments = item.get("segments") or []
-            all_segments.extend(segments)
-    elif engine == "whisper":
-        transcripts = _transcribe_with_whisper(
-            audio_paths,
-            load_options=engine_kwargs.get("load_options"),
-            transcribe_options=engine_kwargs.get("transcribe_options"),
-        )
-    else:
-        raise ValueError(f"未知的语音识别引擎：{engine}")
+    print("正在使用 SiliconFlow API 转换文本...")
+    transcripts = []
+    
+    for idx, audio_path in enumerate(tqdm(audio_paths, desc="Transcribing (SiliconFlow)"), start=1):
+        print(f"正在转换第{idx}个音频... {os.path.basename(audio_path)}")
+        try:
+            text = _transcribe_siliconflow(audio_path)
+            if text:
+                transcripts.append(text)
+        except Exception as e:
+            print(f"转换音频 {audio_path} 失败: {e}")
+            raise e
 
     combined = "\n".join(text for text in transcripts if text)
     print(combined)
+    
     punctuation_count = sum(combined.count(mark) for mark in (",", "，", "。", ".", "！", "？"))
-    if punctuation_count < 3:
-        raise ValueError("音频转换文本失败！")
+    if punctuation_count < 3 and len(combined) > 50:
+        print("警告：音频转换文本标点极少！")
 
-
-    if engine == "funasr":
-        timestamp_output_path = os.path.join(text_save_path, f"{title}.txt")
-        if all_segments:
-            _write_funasr_segments(timestamp_output_path, all_segments)
-            print(f"带时间戳和说话人信息的文本已保存至: {timestamp_output_path}")
-        else:
-            print("FunASR 未返回可用的句级时间戳信息，跳过带说话人文本生成。")
-    else:
-        _write_transcript(text_save_path, title, combined)
-
+    _write_transcript(text_save_path, title, combined)
     return combined

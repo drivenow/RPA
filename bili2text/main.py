@@ -10,7 +10,7 @@ from src.tools_data_process.engine_excel import ExcelEngine
 from src.tools_data_process.engine_mysql import MysqlEngine
 from src.tools_data_process.utils_path import get_root_media_save_path
 from src.tools_data_process.utils_path import get_media_url_excel_path
-from main_run_speech_to_text import summarize_text, judge_text_type
+# from main_run_speech_to_text import summarize_text, judge_text_type
 
 
 @dataclass
@@ -48,8 +48,8 @@ class BiliSpeechPipeline:
         self,
         whisper_model: str = "large-v2",
     ) -> None:
-        self.excel_engine = ExcelEngine()
-        self.mysql_engine = MysqlEngine()
+        # self.excel_engine = ExcelEngine()
+        # self.mysql_engine = MysqlEngine()
         self.whisper_model = whisper_model
         # raise Exception()
 
@@ -129,7 +129,12 @@ class BiliSpeechPipeline:
 
     
     def process_job(self, job: VideoJob, *, skip_existing: bool = True) -> JobResult:
-        from downBili import download_audio_new, extract_real_audio_url, audio_stream_download
+        from downBili import (
+            download_audio_new,
+            extract_real_audio_url,
+            audio_stream_download,
+            restore_original_video_title,
+        )
         from speech2text import run_speech_to_text
         from exAudio import run_split
         start = time.time()
@@ -162,6 +167,8 @@ class BiliSpeechPipeline:
                 audio_split_dir = run_split(job.title, video_dir, audio_dir)
                 audio_input = audio_split_dir
             run_speech_to_text(job.title, audio_input, text_path, engine="funasr")
+            if job.media_type != "podcasts":
+                restore_original_video_title(job.url, job.title, video_dir, job.video_type)
             elapsed = time.time() - start
             print(f"==== 完成: {job.title}，耗时 {elapsed:.2f} 秒 ====")
             return JobResult(job=job, status="success", elapsed=elapsed)
@@ -189,14 +196,17 @@ if __name__=="__main__":
     https://www.xiaoyuzhoufm.com/episode/6895364b638b01587983c94a?utm_source=rss
     """
     pipeline = BiliSpeechPipeline()
-    if True:
+    if False:
         # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
         # jobs = pipeline.build_jobs_from_excel("youtube_browser", "stone记")
         # jobs = pipeline.build_jobs_from_excel("podcasts", "科学有故事")
         jobs = pipeline.build_jobs_from_excel("bili", "深读一书") # ，系统性思考
     else:
-        jobs = [VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
-            title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
+        jobs = [
+            # VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
+            # title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
+            VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV19zcqz5ETm',
+            title='这种冰危险吗', sheet_name='自定义', video_type='bili'),
             VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=NUeluCHIf8A',
             title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
             ]

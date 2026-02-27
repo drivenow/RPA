@@ -25,12 +25,15 @@ def get_media_root():
         elif os.path.exists("/mnt/e/RAG"):
             base_dir = "/mnt/e/RAG/"
         else:
-            raise ValueError("未找到有效路径")
+            # macOS fallback：保存到项目根目录下的 video_output/
+            _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            base_dir = os.path.join(_project_root, "video_output") + "/"
+            os.makedirs(base_dir, exist_ok=True)
     return base_dir
 
 def get_root_media_save_path(media_type, sheet_name):
     base_dir = get_media_root()
-    if media_type.lower() in ["bili", "youtube_browser", "podcasts"]:
+    if media_type.lower() in ["bili", "youtube_browser", "podcasts", "douyin"]:
         if not sheet_name:
             raise ValueError("media_type为bili时, sheet_name参数不能为空")
         voice_slice_dir = os.path.join(base_dir, f"audio/{sheet_name}/")

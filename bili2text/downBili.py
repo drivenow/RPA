@@ -3,14 +3,26 @@
 from urllib.parse import urlparse, parse_qs
 from curl_cffi import requests
 import time, hashlib, urllib.request, re, json
-from moviepy.editor import *
+# from moviepy.editor import *
 import os, sys
 import json
+import shlex
 from retrying import retry
 import subprocess
 import requests
 from src.tools_data_process.utils_path import get_project_root
 from platform import system
+
+def _get_ytdlp_bin() -> str:
+    """获取 yt-dlp 可执行文件的路径，优先使用项目根目录的平台专属版本。"""
+    root = get_project_root()
+    if system() == "Darwin":
+        candidate = os.path.join(root, "yt-dlp_macos")
+    else:
+        candidate = os.path.join(root, "yt-dlp")
+    if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+        return candidate
+    return "yt-dlp"  # fallback: 依赖 PATH
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
@@ -102,54 +114,169 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
     try:
         if video_type == "bili":
             cookie_file = os.path.join(get_project_root(), "bili_cookies.txt")
+        elif video_type == "douyin":
+            cookie_file = os.path.join(get_project_root(), "douyin_cookies.txt")
         else:
             cookie_file = os.path.join(get_project_root(), "youtube_cookies.txt")
+        _ytdlp = _get_ytdlp_bin()
+        is_youtube = (
+            "youtube" in (video_type or "").lower()
+            or "youtube.com" in (url or "")
+            or "youtu.be" in (url or "")
+        )
+        has_cookie_file = os.path.exists(cookie_file)
+
+        def _run_cmd(args):
+            print(" ".join(shlex.quote(item) for item in args))
+            return subprocess.call(args)
+
         if video_save_dir:
             save_dir = video_save_dir
-            # 调用子进程执行命令
-            result = subprocess.call(
-                'yt-dlp -f "bv*[height<=480]+ba/b[height<=480] / wv*+ba/w" "{}" -o "{}/{}.%(ext)s" '.format(
-                    url, save_dir, title), shell=True)
-            print(
-                'yt-dlp -f "bv*[height<=480]+ba/b[height<=480] / wv*+ba/w" "{}" -o "{}/{}.%(ext)s" '.format(
-                    url, save_dir, title))
-
-            # 判断子进程是否执行成功
-            try:
-                assert result == 0, "下载失败"
-            except:
-                result = subprocess.call(
-                    'yt-dlp -f "bv*[height<=480]+ba/b[height<=480] / wv*+ba/w" "{}" -o "{}/{}.%(ext)s" --cookies {}'.format(
-                        url, save_dir, title, cookie_file), shell=True)
-                print(
-                    'yt-dlp -f "bv*[height<=480]+ba/b[height<=480] / wv*+ba/w" "{}" -o "{}/{}.%(ext)s" --cookies {}'.format(
-                        url, save_dir, title, cookie_file))
-                assert result == 0, "下载失败"
+            output_tmpl = os.path.join(save_dir, f"{title}.%(ext)s")
+            args = [
+                _ytdlp,
+                "-f",
+                "bv*[height<=480]+ba/b[height<=480]/wv*+ba/w",
+                url,
+                "-o",
+                output_tmpl,
+            ]
+            if is_youtube:
+                args.extend(["--js-runtimes", "node"])
+            if has_cookie_file:
+                args.extend(["--cookies", cookie_file])
+            result = _run_cmd(args)
+            assert result == 0, "下载失败"
 
         if autio_save_dir:
             save_dir = autio_save_dir
-            # 调用子进程执行命令
-            result = subprocess.call(
-                'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3'.format(
-                    url, save_dir, title), shell=True)
-            print("yt-dlp -f ba \"{}\" -o \"{}/{}.%(ext)s\" --extract-audio --audio-format mp3".format(url, save_dir, title))
-            # 判断子进程是否执行成功
-            try:
-                assert result == 0, "下载失败"
-            except:
-                result = subprocess.call(
-                    'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --cookies "{}"'.format(
-                        url, save_dir, title, cookie_file), shell=True)
-                print(
-                    'yt-dlp -f ba "{}" -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --cookies "{}"'.format(
-                        url, save_dir, title, cookie_file))
-                assert result == 0, "下载失败"
+            output_tmpl = os.path.join(save_dir, f"{title}.%(ext)s")
+            args = [
+                _ytdlp,
+                "-f",
+                "ba",
+                url,
+                "-o",
+                output_tmpl,
+                "--extract-audio",
+                "--audio-format",
+                "mp3",
+            ]
+            if is_youtube:
+                args.extend(["--js-runtimes", "node"])
+            if has_cookie_file:
+                args.extend(["--cookies", cookie_file])
+            result = _run_cmd(args)
+            assert result == 0, "下载失败"
         return title
     except Exception as e:
         import traceback
         print(traceback.print_exc())
         raise Exception("发生错误:", str(e))
         
+
+
+def _resolve_cookie_file(video_type: str) -> str:
+    if video_type == "bili":
+        return os.path.join(get_project_root(), "bili_cookies.txt")
+    if video_type == "douyin":
+        return os.path.join(get_project_root(), "douyin_cookies.txt")
+    return os.path.join(get_project_root(), "youtube_cookies.txt")
+
+
+def _is_youtube_source(url: str, video_type: str) -> bool:
+    normalized_type = (video_type or "").lower()
+    return (
+        "youtube" in normalized_type
+        or "youtube.com" in (url or "")
+        or "youtu.be" in (url or "")
+    )
+
+
+def _safe_filename(name: str, fallback: str) -> str:
+    title = (name or "").strip()
+    invalid_chars = '<>:"/\\|?*'
+    translation = str.maketrans({ch: "" for ch in invalid_chars})
+    title = title.translate(translation)
+    title = " ".join(title.split())
+    return title or fallback
+
+
+def _find_downloaded_video_path(video_save_dir: str, temp_title: str):
+    if not os.path.isdir(video_save_dir):
+        return None
+    candidates = [
+        name for name in os.listdir(video_save_dir)
+        if os.path.isfile(os.path.join(video_save_dir, name)) and "temp" not in name
+    ]
+    if not candidates:
+        return None
+
+    exact = [name for name in candidates if os.path.splitext(name)[0] == temp_title]
+    if exact:
+        candidates = exact
+    else:
+        fuzzy = [name for name in candidates if temp_title in name]
+        if fuzzy:
+            candidates = fuzzy
+
+    candidates.sort(
+        key=lambda name: os.path.getmtime(os.path.join(video_save_dir, name)),
+        reverse=True,
+    )
+    return os.path.join(video_save_dir, candidates[0])
+
+
+def _fetch_remote_video_title(url: str, video_type: str):
+    ytdlp = _get_ytdlp_bin()
+    cookie_file = _resolve_cookie_file(video_type)
+    args = [ytdlp, "--skip-download", "--print", "%(title)s", url]
+    if _is_youtube_source(url, video_type):
+        args.extend(["--js-runtimes", "node"])
+    if os.path.exists(cookie_file):
+        args.extend(["--cookies", cookie_file])
+
+    result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode != 0:
+        return None
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if not lines:
+        return None
+    return lines[-1]
+
+
+def restore_original_video_title(url: str, temp_title: str, video_save_dir: str, video_type: str = "bili") -> str:
+    """
+    解析完成后，把下载视频从临时标题恢复为站点原始标题（仅重命名视频文件本身）。
+    返回最终使用的视频标题（不含扩展名）。
+    """
+    try:
+        source_path = _find_downloaded_video_path(video_save_dir, temp_title)
+        if not source_path:
+            return temp_title
+
+        remote_title = _fetch_remote_video_title(url, video_type)
+        normalized_title = _safe_filename(remote_title or "", fallback=temp_title)
+        if normalized_title == temp_title:
+            return temp_title
+
+        ext = os.path.splitext(source_path)[1]
+        target_path = os.path.join(video_save_dir, f"{normalized_title}{ext}")
+        if os.path.abspath(target_path) == os.path.abspath(source_path):
+            return temp_title
+
+        suffix = 1
+        while os.path.exists(target_path):
+            target_path = os.path.join(video_save_dir, f"{normalized_title}_{suffix}{ext}")
+            suffix += 1
+
+        os.replace(source_path, target_path)
+        final_title = os.path.splitext(os.path.basename(target_path))[0]
+        print(f"视频文件重命名成功: {os.path.basename(source_path)} -> {os.path.basename(target_path)}")
+        return final_title
+    except Exception as e:
+        print(f"视频文件重命名失败，保留原文件名: {e}")
+        return temp_title
 
 
 def extract_real_audio_url(asset_url: str) -> str:
