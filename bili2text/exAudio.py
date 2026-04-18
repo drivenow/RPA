@@ -2,8 +2,66 @@ from moviepy import VideoFileClip
 from pydub import AudioSegment
 import os
 import numpy as np
-import time
+import shutil
 from tqdm import tqdm
+
+AUDIO_EXTENSIONS = {".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg", ".opus"}
+VIDEO_EXTENSIONS = {".mp4", ".flv", ".webm", ".mkv", ".mov", ".m4v"}
+
+
+def _is_transient_file(name: str) -> bool:
+    lower = name.lower()
+    return lower.startswith("temp_") or lower.endswith(".part") or lower.endswith(".ytdl")
+
+
+def _list_media_candidates(video_title: str, media_dir: str):
+    files = [f for f in os.listdir(media_dir) if os.path.isfile(os.path.join(media_dir, f))]
+    files = [f for f in files if os.path.splitext(f)[1].lower() in (AUDIO_EXTENSIONS | VIDEO_EXTENSIONS)]
+    title_matches = [f for f in files if video_title in f]
+    if title_matches:
+        return sorted(
+            title_matches,
+            key=lambda name: (
+                1 if _is_transient_file(name) else 0,
+                0 if os.path.splitext(name)[1].lower() in AUDIO_EXTENSIONS else 1,
+                name.lower(),
+            ),
+        )
+    transient_matches = [f for f in files if _is_transient_file(f)]
+    return sorted(
+        transient_matches,
+        key=lambda name: os.path.getmtime(os.path.join(media_dir, name)),
+        reverse=True,
+    )
+
+
+def _export_audio_as_mp3(source_path: str, target_mp3_path: str):
+    ext = os.path.splitext(source_path)[1].lower()
+    if ext == ".mp3":
+        if os.path.abspath(source_path) != os.path.abspath(target_mp3_path):
+            shutil.copy2(source_path, target_mp3_path)
+        return
+    segment = AudioSegment.from_file(source_path)
+    segment.export(target_mp3_path, format="mp3")
+
+
+def _extract_audio_from_video(video_path: str, target_mp3_path: str) -> bool:
+    clip = None
+    try:
+        clip = VideoFileClip(video_path)
+        audio = clip.audio
+        if audio is None:
+            return False
+        audio.write_audiofile(target_mp3_path)
+        return True
+    finally:
+        try:
+            if clip is not None:
+                if clip.audio is not None:
+                    clip.audio.close()
+                clip.close()
+        except Exception:
+            pass
 
 def split_mp3(filename, slice_length=1200000, target_folder="audio/slice"):
     # 加载MP3文件
@@ -30,27 +88,44 @@ def split_mp3(filename, slice_length=1200000, target_folder="audio/slice"):
 
 
 # 运行切割函数
-def run_split(video_title, vidio_folder, audio_folder, split = True):
-    # 将FLV视频文件加载为一个VideoFileClip对象
-    file_name = [i for i in os.listdir(vidio_folder) if video_title in i and not "temp" in i]
-    if not file_name:
-        raise ValueError("No video file found. {}".format(video_title))
-    file_name = file_name[0]
-    clip = VideoFileClip(os.path.join(vidio_folder, file_name))
-    # 提取音频部分
-    audio = clip.audio
-    if audio is None:
-        raise ValueError("无法从视频中提取音频: {}".format(file_name))
-    # 将音频保存为一个文件（例如MP3），写入conv文件夹
-    audio.write_audiofile(f"{audio_folder}/{video_title}.mp3")
-    # 关闭视频文件
-    clip.close()
+def run_split(video_title, vidio_folder, audio_folder, audio_split_folder=None, split=True):
+    os.makedirs(audio_folder, exist_ok=True)
+    target_mp3 = os.path.join(audio_folder, f"{video_title}.mp3")
+
+    candidates = _list_media_candidates(video_title, vidio_folder)
+    if not candidates:
+        raise ValueError(f"No media file found for title: {video_title}")
+
+    errors = []
+    extracted = False
+
+    for file_name in candidates:
+        source_path = os.path.join(vidio_folder, file_name)
+        ext = os.path.splitext(file_name)[1].lower()
+        try:
+            if ext in AUDIO_EXTENSIONS:
+                _export_audio_as_mp3(source_path, target_mp3)
+                print(f"[run_split] 使用音频文件: {file_name}")
+                extracted = True
+                break
+            if ext in VIDEO_EXTENSIONS and _extract_audio_from_video(source_path, target_mp3):
+                print(f"[run_split] 从视频提取音频: {file_name}")
+                extracted = True
+                break
+            errors.append(f"{file_name}: no audio stream")
+        except Exception as exc:
+            errors.append(f"{file_name}: {exc}")
+
+    if not extracted:
+        error_text = "; ".join(errors[:5])
+        raise ValueError(f"无法从候选媒体中提取音频: {video_title}. details={error_text}")
 
     # 运行切割
     if split:
-        audio_split_folder = os.path.join(audio_folder, video_title)
+        if audio_split_folder is None:
+            audio_split_folder = os.path.join(audio_folder, video_title)
         os.makedirs(audio_split_folder, exist_ok=True)
-        split_mp3(f"{audio_folder}/{video_title}.mp3", target_folder=audio_split_folder)
+        split_mp3(target_mp3, target_folder=audio_split_folder)
         return audio_split_folder
     else:
-        return f"{audio_folder}/{video_title}.mp3"
+        return target_mp3

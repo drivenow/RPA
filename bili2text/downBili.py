@@ -7,6 +7,7 @@ import time, hashlib, urllib.request, re, json
 import os, sys
 import json
 import shlex
+import shutil
 from retrying import retry
 import subprocess
 import requests
@@ -14,7 +15,22 @@ from src.tools_data_process.utils_path import get_project_root
 from platform import system
 
 def _get_ytdlp_bin() -> str:
-    """获取 yt-dlp 可执行文件的路径，优先使用项目根目录的平台专属版本。"""
+    """获取 yt-dlp 可执行文件路径。优先级: 环境变量 > PATH > 项目内置二进制。"""
+    env_bin = (os.environ.get("YTDLP_BIN") or "").strip()
+    if env_bin:
+        return env_bin
+
+    # When the process PATH does not include the active venv/conda bin,
+    # resolve yt-dlp next to the current Python interpreter first.
+    py_dir = os.path.dirname(sys.executable or "")
+    py_sibling = os.path.join(py_dir, "yt-dlp") if py_dir else ""
+    if py_sibling and os.path.isfile(py_sibling) and os.access(py_sibling, os.X_OK):
+        return py_sibling
+
+    path_bin = shutil.which("yt-dlp")
+    if path_bin:
+        return path_bin
+
     root = get_project_root()
     if system() == "Darwin":
         candidate = os.path.join(root, "yt-dlp_macos")
@@ -23,6 +39,145 @@ def _get_ytdlp_bin() -> str:
     if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
         return candidate
     return "yt-dlp"  # fallback: 依赖 PATH
+
+
+def _get_youget_bin() -> str:
+    """获取 you-get 可执行文件路径。"""
+    py_dir = os.path.dirname(sys.executable or "")
+    py_sibling = os.path.join(py_dir, "you-get") if py_dir else ""
+    if py_sibling and os.path.isfile(py_sibling) and os.access(py_sibling, os.X_OK):
+        return py_sibling
+    path_bin = shutil.which("you-get")
+    if path_bin:
+        return path_bin
+    return "you-get"
+
+
+def _resolve_proxy() -> str:
+    """
+    解析下载代理，优先读取环境变量，默认回落到本机代理端口。
+    """
+    for key in ("YTDLP_PROXY", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+        value = (os.environ.get(key) or "").strip()
+        if value:
+            return value
+    return "http://127.0.0.1:7897"
+
+
+def _resolve_youtube_proxy() -> str:
+    """
+    解析 YouTube 下载代理，优先读取环境变量，默认回落到本机代理端口。
+    仅 YouTube 流程使用，避免影响其他站点。
+    （向后兼容，实际调用 _resolve_proxy）
+    """
+    return _resolve_proxy()
+
+
+def _youtube_ytdlp_network_args():
+    """
+    YouTube 专用：增强网络容错，降低代理链路抖动导致的 EOF/超时失败。
+    """
+    proxy = _resolve_youtube_proxy()
+    return [
+        "--js-runtimes", "node",
+        "--proxy", proxy,
+        "--retries", "30",
+        "--fragment-retries", "30",
+        "--extractor-retries", "5",
+        "--retry-sleep", "3",
+        "--socket-timeout", "30",
+        "--force-ipv4",
+    ]
+
+
+def _bili_ytdlp_network_args():
+    """
+    Bilibili 专用：保留代理与重试，但不强制 curl/impersonate。
+    实测某些 CDN 音频分片在 curl_cffi/impersonate 路径下会出现 TLS 失败。
+    """
+    proxy = _resolve_proxy()
+    return [
+        "--proxy", proxy,
+        "--socket-timeout", "30",
+        "--retries", "20",
+        "--fragment-retries", "20",
+        "--extractor-retries", "5",
+    ]
+
+
+def _get_ytdlp_version(ytdlp_bin: str) -> str:
+    """
+    返回 yt-dlp 版本号；读取失败时返回占位信息，避免影响主流程。
+    """
+    try:
+        result = subprocess.run(
+            [ytdlp_bin, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+        )
+        if result.returncode != 0:
+            return f"unknown(return_code={result.returncode})"
+        version = (result.stdout or "").strip().splitlines()
+        return version[0].strip() if version else "unknown(empty_output)"
+    except Exception as exc:
+        return f"unknown({type(exc).__name__})"
+
+
+def _build_download_failure_guidance(
+    *,
+    url: str,
+    video_type: str,
+    stage: str,
+    return_code: int,
+    cmd_args,
+    ytdlp_bin: str,
+    ytdlp_version: str,
+    cookie_file: str,
+    has_cookie_file: bool,
+) -> str:
+    cmd_text = " ".join(shlex.quote(item) for item in (cmd_args or []))
+    lines = [
+        f"yt-dlp 执行失败: stage={stage}, return_code={return_code}",
+        f"url={url}",
+        f"video_type={video_type}",
+        f"ytdlp_bin={ytdlp_bin}",
+        f"ytdlp_version={ytdlp_version}",
+        f"command={cmd_text}",
+    ]
+
+    if _is_youtube_source(url, video_type):
+        proxy_hint = _resolve_youtube_proxy()
+        lines.extend(
+            [
+                "",
+                "排查建议(YouTube):",
+                "1) 先确认代理链路稳定（可访问 youtube.com 和 googlevideo.com）。",
+                f"2) 当前代理解析值: {proxy_hint}",
+                "3) 检查日志关键词: UNEXPECTED_EOF / timed out / Sign in / 403。",
+                "4) 确认 Node 可用（--js-runtimes node 依赖 node）。",
+                "5) 先跑内置排查用例（在 RPA 项目根目录执行）：",
+                "   python -m unittest bili2text/test/test_downbili_youtube_args.py",
+                "   python -m unittest bili2text.test.test_downbili_youtube_args.TestDownBiliYoutubeArgs.test_resolve_youtube_proxy_priority",
+                "   python -m unittest bili2text.test.test_downbili_youtube_args.TestDownBiliYoutubeArgs.test_download_audio_new_adds_youtube_network_args",
+            ]
+        )
+        if has_cookie_file:
+            lines.append(f"6) cookies 文件已存在: {cookie_file}")
+        else:
+            lines.append(f"6) cookies 文件不存在，请重新导出: {cookie_file}")
+    else:
+        lines.extend(
+            [
+                "",
+                "排查建议:",
+                "1) 检查 URL 是否有效、视频是否可访问。",
+                "2) 检查站点 cookies 文件是否存在并可读。",
+                "3) 复用上面 command 在终端直接执行，查看底层 ERROR 输出。",
+            ]
+        )
+    return "\n".join(lines)
+
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
@@ -106,11 +261,12 @@ def download_video(bv_number, title, base_dir):
 
     except Exception as e:
         import traceback
-        print(traceback.print_exc())
+        traceback.print_exc()
         print("发生错误:", str(e))
 
 
 def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, video_type="bili"):
+    """下载视频/音频，支持 yt-dlp 和 you-get 备选（Bilibili）。"""
     try:
         if video_type == "bili":
             cookie_file = os.path.join(get_project_root(), "bili_cookies.txt")
@@ -119,16 +275,99 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
         else:
             cookie_file = os.path.join(get_project_root(), "youtube_cookies.txt")
         _ytdlp = _get_ytdlp_bin()
+        _ytdlp_version = _get_ytdlp_version(_ytdlp)
         is_youtube = (
             "youtube" in (video_type or "").lower()
             or "youtube.com" in (url or "")
             or "youtu.be" in (url or "")
         )
+        is_bili = "bilibili.com" in (url or "") or video_type == "bili"
         has_cookie_file = os.path.exists(cookie_file)
+        last_args = []
+        last_stage = "unknown"
+        last_return_code = None
 
-        def _run_cmd(args):
+        def _run_cmd(args, stage):
+            nonlocal last_args, last_stage, last_return_code
+            last_args = list(args)
+            last_stage = stage
             print(" ".join(shlex.quote(item) for item in args))
-            return subprocess.call(args)
+            # Ensure Node.js is in PATH for yt-dlp's n-challenge solver
+            env = os.environ.copy()
+            node_paths = ["/usr/local/opt/node@22/bin", "/usr/local/bin"]
+            current_path = env.get("PATH", "")
+            for node_path in node_paths:
+                if node_path not in current_path:
+                    env["PATH"] = f"{node_path}:{current_path}"
+                    current_path = env["PATH"]
+            last_return_code = subprocess.call(args, env=env)
+            return last_return_code
+
+        def _run_cmd_with_retry(args, stage, retry_count=1, sleep_seconds=30):
+            """
+            Run yt-dlp command with a simple fixed-delay retry.
+            retry_count=1 means total 2 attempts.
+            """
+            attempts = max(1, 1 + int(retry_count))
+            for attempt in range(1, attempts + 1):
+                result = _run_cmd(args, stage=stage)
+                if result == 0:
+                    return 0
+                if attempt < attempts:
+                    print(
+                        f"[yt-dlp] {stage} failed (attempt {attempt}/{attempts}, return_code={result}), "
+                        f"sleep {sleep_seconds}s then retry..."
+                    )
+                    time.sleep(max(0, int(sleep_seconds)))
+            return result
+
+        def _try_curl_download(save_dir):
+            """使用系统 curl 下载 Bilibili（绕过 Python SSL 问题）。"""
+            if not is_bili:
+                return False
+            output_file = os.path.join(save_dir, f"temp_{int(time.time())}.mp4")
+            print(f"[curl] Trying download as fallback for Bilibili...")
+
+            args = ["curl", "-L", "-o", output_file, "--max-time", "300", "-s", "-S"]
+            args.extend(["-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"])
+            
+            if has_cookie_file:
+                args.extend(["-b", cookie_file])
+            
+            proxy = _resolve_proxy()
+            args.extend(["-x", proxy])
+            args.append(url)
+            
+            result = subprocess.run(args, capture_output=True, text=True)
+            if result.returncode != 0 or not os.path.exists(output_file):
+                print(f"[curl] Download failed: {result.stderr[:200]}")
+                return False
+
+            # 兜底下载经常拿到的是分享页 HTML，不能当作视频继续后续流程。
+            file_size = os.path.getsize(output_file)
+            if file_size < 512 * 1024:
+                print(f"[curl] Download invalid (too small: {file_size} bytes): {output_file}")
+                try:
+                    os.remove(output_file)
+                except OSError:
+                    pass
+                return False
+
+            try:
+                with open(output_file, "rb") as fh:
+                    header = fh.read(2048).lower()
+                if b"<html" in header or b"<!doctype html" in header:
+                    print(f"[curl] Download invalid (html content): {output_file}")
+                    try:
+                        os.remove(output_file)
+                    except OSError:
+                        pass
+                    return False
+            except OSError:
+                return False
+
+            print(f"[curl] Download successful: {output_file}")
+            return True
 
         if video_save_dir:
             save_dir = video_save_dir
@@ -136,17 +375,43 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
             args = [
                 _ytdlp,
                 "-f",
-                "bv*[height<=480]+ba/b[height<=480]/wv*+ba/w",
+                # 优先低码率音频分片，规避部分高码率音频 CDN 的 TLS EOF/握手失败。
+                "b[height<=480]/bv*[height<=480]+ba[abr<=100]/bv*[height<=480]+ba/wv*+ba[abr<=100]/wv*+ba/w",
                 url,
                 "-o",
                 output_tmpl,
             ]
             if is_youtube:
-                args.extend(["--js-runtimes", "node"])
+                args.extend(_youtube_ytdlp_network_args())
+            elif is_bili:
+                args.extend(_bili_ytdlp_network_args())
+            else:
+                # Bilibili/Douyin 也需要代理
+                proxy = _resolve_proxy()
+                args.extend(["--proxy", proxy])
             if has_cookie_file:
                 args.extend(["--cookies", cookie_file])
-            result = _run_cmd(args)
-            assert result == 0, "下载失败"
+            result = _run_cmd_with_retry(args, stage="video_download", retry_count=1, sleep_seconds=30)
+            
+            # Bilibili 失败时尝试 curl 备选（绕过 Python SSL 问题）
+            if result != 0 and is_bili:
+                if _try_curl_download(save_dir):
+                    result = 0
+            
+            if result != 0:
+                raise RuntimeError(
+                    _build_download_failure_guidance(
+                        url=url,
+                        video_type=video_type,
+                        stage=last_stage,
+                        return_code=result,
+                        cmd_args=last_args,
+                        ytdlp_bin=_ytdlp,
+                        ytdlp_version=_ytdlp_version,
+                        cookie_file=cookie_file,
+                        has_cookie_file=has_cookie_file,
+                    )
+                )
 
         if autio_save_dir:
             save_dir = autio_save_dir
@@ -163,17 +428,35 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
                 "mp3",
             ]
             if is_youtube:
-                args.extend(["--js-runtimes", "node"])
+                args.extend(_youtube_ytdlp_network_args())
+            elif is_bili:
+                args.extend(_bili_ytdlp_network_args())
+            else:
+                # Bilibili/Douyin 也需要代理
+                proxy = _resolve_proxy()
+                args.extend(["--proxy", proxy])
             if has_cookie_file:
                 args.extend(["--cookies", cookie_file])
-            result = _run_cmd(args)
-            assert result == 0, "下载失败"
+            result = _run_cmd_with_retry(args, stage="audio_extract", retry_count=1, sleep_seconds=30)
+            if result != 0:
+                raise RuntimeError(
+                    _build_download_failure_guidance(
+                        url=url,
+                        video_type=video_type,
+                        stage=last_stage,
+                        return_code=result,
+                        cmd_args=last_args,
+                        ytdlp_bin=_ytdlp,
+                        ytdlp_version=_ytdlp_version,
+                        cookie_file=cookie_file,
+                        has_cookie_file=has_cookie_file,
+                    )
+                )
         return title
     except Exception as e:
         import traceback
-        print(traceback.print_exc())
-        raise Exception("发生错误:", str(e))
-        
+        traceback.print_exc()
+        raise Exception(f"发生错误: {e}")
 
 
 def _resolve_cookie_file(video_type: str) -> str:
@@ -232,7 +515,7 @@ def _fetch_remote_video_title(url: str, video_type: str):
     cookie_file = _resolve_cookie_file(video_type)
     args = [ytdlp, "--skip-download", "--print", "%(title)s", url]
     if _is_youtube_source(url, video_type):
-        args.extend(["--js-runtimes", "node"])
+        args.extend(_youtube_ytdlp_network_args())
     if os.path.exists(cookie_file):
         args.extend(["--cookies", cookie_file])
 
