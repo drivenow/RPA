@@ -301,7 +301,7 @@ def run_speech_to_text(
     audio_split_folder: str,
     text_save_path: str,
     *,
-    engine: str = "groq",
+    engine: str = "siliconflow",
     engine_kwargs: Optional[Dict[str, Dict[str, object]]] = None,
 ):
     """
@@ -311,7 +311,7 @@ def run_speech_to_text(
         title: 视频标题
         audio_split_folder: 音频文件夹路径
         text_save_path: 文本保存路径
-        engine: 使用的引擎，可选 "groq"（默认）或 "siliconflow"（备用）
+        engine: 使用的引擎，可选 "siliconflow"（默认）或 "groq"（备用）
         engine_kwargs: 引擎参数，如 {"groq": {"api_key": "xxx"}}
     """
     audio_paths = _collect_audio_paths(audio_split_folder)
@@ -325,22 +325,22 @@ def run_speech_to_text(
         or DEFAULT_SILICONFLOW_API_KEY
     )
 
-    # 缺少 Groq key 时，直接走备用引擎，避免先打印失败再成功的误导日志。
-    if engine == "groq" and not groq_api_key:
-        print("未检测到 GROQ_API_KEY，直接使用备用方案 SiliconFlow...")
-        engine = "siliconflow"
-
     # 根据 engine 选择转录方法
-    if engine == "siliconflow":
-        print("正在使用 SiliconFlow API 转换文本（备用方案）...")
-        api_key = siliconflow_api_key
-        transcribe_func = lambda path: _transcribe_siliconflow(path, api_key)
-        desc = "Transcribing (SiliconFlow)"
-    else:  # 默认使用 groq
+    if engine == "groq":
+        if not groq_api_key:
+            print("未检测到 GROQ_API_KEY，使用默认方案 SiliconFlow...")
+            engine = "siliconflow"
+
+    if engine == "groq":
         print("正在使用 Groq API 转换文本...")
         api_key = groq_api_key
         transcribe_func = lambda path: _transcribe_groq(path, api_key)
         desc = "Transcribing (Groq)"
+    else:  # 默认使用 siliconflow
+        print("正在使用 SiliconFlow API 转换文本...")
+        api_key = siliconflow_api_key
+        transcribe_func = lambda path: _transcribe_siliconflow(path, api_key)
+        desc = "Transcribing (SiliconFlow)"
 
     transcripts = []
 
@@ -352,11 +352,11 @@ def run_speech_to_text(
                 transcripts.append(text)
         except Exception as e:
             print(f"转换音频 {audio_path} 失败: {e}")
-            # 如果是 Groq 失败，尝试切换到 SiliconFlow
-            if engine == "groq":
-                print("尝试使用备用方案 SiliconFlow...")
+            # SiliconFlow 失败时尝试切换到 Groq
+            if engine == "siliconflow" and groq_api_key:
+                print("尝试使用备用方案 Groq...")
                 try:
-                    text = _transcribe_siliconflow(audio_path, siliconflow_api_key)
+                    text = _transcribe_groq(audio_path, groq_api_key)
                     if text:
                         transcripts.append(text)
                         continue

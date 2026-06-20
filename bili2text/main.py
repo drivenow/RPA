@@ -214,7 +214,7 @@ class BiliSpeechPipeline:
                 )
                 audio_split_dir = run_split(job.title, video_dir, audio_dir)
                 audio_input = audio_split_dir
-            run_speech_to_text(job.title, audio_input, text_path, engine="groq")
+            run_speech_to_text(job.title, audio_input, text_path, engine="siliconflow")
             if job.media_type != "podcasts":
                 restore_original_video_title(job.url, job.title, video_dir, job.video_type)
             elapsed = time.time() - start
