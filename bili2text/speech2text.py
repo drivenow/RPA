@@ -1,370 +1,299 @@
 import os
-import time
+import re
+import json
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import contextlib
 import requests
-
 from retrying import retry
 from tqdm import tqdm
-from typing import Optional, Dict, List, Iterable, Any
-
-whisper_model = None
-whisper_model_name: Optional[str] = None
-funasr_model = None
-funasr_model_config: Optional[Dict[str, object]] = None
+from typing import Optional, Dict
 
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
+DEFAULT_SILICONFLOW_API_KEY = "sk-vwoalamuqgjixnzqxeeegrgwysiutayvbgscvakwiqqyauof"
+
+# ---- 标点恢复：daemon + fallback ----
+_PUNCT_SOCKET = os.environ.get(
+    "OPENCLAW_PUNCT_SOCKET",
+    os.path.join(os.environ.get("TMPDIR", "/tmp"), "openclaw-punct.sock"),
+)
+_punct_model = None  # fallback: in-process model
 
 
-def get_whisper_model_dir() -> str:
-    if os.path.exists("/mnt/c/Users/fullmetal/.cache/whisper/"):
-        return "/mnt/c/Users/fullmetal/.cache/whisper/"
-    if os.path.exists("/mnt/x/RAG_192.168.1.2/.cache/whisper/"):
-        return "/mnt/x/RAG_192.168.1.2/.cache/whisper/"
-    return "~/.cache/whisper"
+def _try_daemon(text: str) -> str | None:
+    """Try sending text to punct_daemon via Unix socket. Returns None on failure."""
+    for attempt in range(2):
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.settimeout(300)
+            s.connect(_PUNCT_SOCKET)
+            req = json.dumps({"text": text}, ensure_ascii=False) + "\n"
+            s.sendall(req.encode("utf-8"))
+            buf = b""
+            while True:
+                chunk = s.recv(65536)
+                if not chunk:
+                    break
+                buf += chunk
+                if b"\n" in buf:
+                    break
+            s.close()
+            resp = json.loads(buf.decode("utf-8"))
+            if "error" in resp:
+                return None
+            return resp.get("text")
+        except (ConnectionRefusedError, FileNotFoundError, OSError):
+            if attempt == 0:
+                # Try starting the daemon
+                _start_daemon()
+                continue
+            return None
+    return None
 
 
-def is_cuda_available() -> bool:
+def _start_daemon():
+    """Start punct_daemon.py and wait until it's ready (model loaded, socket listening)."""
+    daemon_script = os.path.join(os.path.dirname(__file__), "punct_daemon.py")
+    if not os.path.exists(daemon_script):
+        return
     try:
-        import torch
-
-        return bool(torch.cuda.is_available())
+        subprocess.Popen(
+            [sys.executable or "python3", daemon_script, "--socket", _PUNCT_SOCKET],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        # Poll socket — daemon binds after model load (~45s first time)
+        import time
+        for _ in range(120):  # up to 120s
+            time.sleep(1)
+            try:
+                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                s.settimeout(1)
+                s.connect(_PUNCT_SOCKET)
+                s.close()
+                return  # daemon is ready
+            except (ConnectionRefusedError, FileNotFoundError):
+                continue
     except Exception:
-        return False
+        pass
 
 
-def is_rocm_available() -> bool:
+def restore_punctuation(text: str) -> str:
+    """使用 FunASR ct-punc 模型为无标点文本恢复标点符号。
+
+    优先通过 Unix socket 连接常驻 daemon（模型已预加载，响应快）。
+    Daemon 未运行时自动启动；启动失败则回退到进程内直接加载。
+    """
+    if not text or not text.strip():
+        return text
+
+    # Try daemon first
+    result = _try_daemon(text)
+    if result is not None:
+        return result
+
+    # Fallback: in-process model (direct inference, bypass tqdm overhead)
+    import logging
+
+    global _punct_model
+    if _punct_model is None:
+        from funasr import AutoModel
+        print("正在加载标点恢复模型 FunASR ct-punc ...")
+        with _suppress_output():
+            _punct_model = AutoModel(model="ct-punc", disable_update=True)
+        print("标点恢复模型加载完成。")
+
+    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
+    if not paragraphs:
+        return text
+
+    import torch
+    inner = _punct_model.model
+    inner.eval()
+    restored = []
+    with torch.no_grad():
+        for para in paragraphs:
+            res = inner.inference(data_in=[para], key=["p"], **_punct_model.kwargs)
+            results = res[0] if isinstance(res, (list, tuple)) else res
+            restored.append(results[0]["text"])
+    return "\n".join(restored)
+
+
+@contextlib.contextmanager
+def _suppress_output():
+    """临时抑制 FunASR / jieba / modelscope 的日志和进度条输出。"""
+    import logging
+    import os
+
+    # 保存并提升所有相关 logger 级别
+    loggers = [logging.getLogger(n) for n in ("", "jieba", "modelscope", "funasr", "root")]
+    saved = [(lg, lg.level) for lg in loggers]
+    for lg in loggers:
+        lg.setLevel(logging.CRITICAL)
+
+    # 重定向 stderr 以抑制 tqdm 进度条和 print 直接输出
+    devnull = open(os.devnull, "w")
+    old_stderr = os.dup(2)
+    os.dup2(devnull.fileno(), 2)
     try:
-        import torch
-
-        return hasattr(torch, "hip") and bool(torch.hip.is_available())
-    except Exception:
-        return False
-
-
-def load_whisper(model: str = "tiny", **model_kwargs):
-    """Load faster-whisper model only once."""
-    global whisper_model, whisper_model_name
-    desired_name = model or "tiny"
-    if whisper_model is not None and whisper_model_name == desired_name:
-        return whisper_model
-
-    start_time = time.time()
-    device = "cuda" if is_cuda_available() else "xpu" if is_rocm_available() else "cpu"
-    print("device:", device)
-    from faster_whisper import WhisperModel
-
-    load_kwargs = {
-        "compute_type": "int8_float16",
-        "num_workers": 6,
-        "cpu_threads": 6,
-        "download_root": get_whisper_model_dir(),
-    }
-    load_kwargs.update(model_kwargs)
-    whisper_model = WhisperModel(desired_name, device=device, **load_kwargs)
-    whisper_model_name = desired_name
-    print("Whisper模型加载耗时：", time.time() - start_time, "秒：" + desired_name)
-    return whisper_model
+        yield
+    finally:
+        os.dup2(old_stderr, 2)
+        os.close(old_stderr)
+        devnull.close()
+        for lg, level in saved:
+            lg.setLevel(level)
 
 
-def load_funasr(
-    model_dir: str = "iic/SenseVoiceSmall",
-    *,
-    device: str = "cuda:0",
-    vad_model: str = "fsmn-vad",
-    vad_kwargs: Optional[Dict[str, int]] = None,
-    **extra_kwargs,
-):
-    """Load FunASR AutoModel and reuse across calls."""
-    global funasr_model, funasr_model_config
-    start_time = time.time()
-    config = {
-        "model_dir": model_dir,
-        "device": device,
-        "vad_model": vad_model,
-        "vad_kwargs": tuple(sorted((vad_kwargs or {"max_single_segment_time": 30000}).items())),
-        **extra_kwargs,
-    }
-    if funasr_model is not None and funasr_model_config == config:
-        return funasr_model
-
-    from funasr import AutoModel
-
-    load_kwargs = dict(extra_kwargs)
-    load_kwargs.setdefault("model", model_dir)
-    load_kwargs.setdefault("device", device)
-    load_kwargs.setdefault("vad_model", vad_model)
-    load_kwargs.setdefault("vad_kwargs", vad_kwargs or {"max_single_segment_time": 30000})
-    funasr_model = AutoModel(**load_kwargs)
-    funasr_model_config = config
-    print("FunASR模型加载耗时：", time.time() - start_time, "秒：" + model_dir)
-    return funasr_model
+def _collect_audio_paths(audio_split_folder: str):
+    """收集音频文件路径"""
+    audio_paths = []
+    for filename in sorted(os.listdir(audio_split_folder)):
+        if any(filename.lower().endswith(ext) for ext in AUDIO_EXTENSIONS):
+            audio_paths.append(os.path.join(audio_split_folder, filename))
+    return audio_paths
 
 
-def _audio_sort_key(filename: str):
-    stem = os.path.splitext(filename)[0]
+def _format_transcript_with_punctuation_lines(text: str) -> str:
+    """按标点切分长文本，提升 txt 可读性。"""
+    normalized = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not normalized:
+        return ""
+
+    normalized = re.sub(r"\s+", " ", normalized)
+    normalized = re.sub(r"([。！？!?])\s*", r"\1\n", normalized)
+    normalized = re.sub(r"\n{2,}", "\n", normalized)
+    return normalized.strip()
+
+
+def _write_transcript(text_save_path: str, title: str, combined_text: str):
+    """写入转录文本到文件"""
+    # 内容为空时不写文件，避免产生残缺文件触发 skip_existing 永久跳过
+    if not combined_text or not combined_text.strip():
+        print(f"[警告] 转录内容为空，跳过写入: {title}")
+        return
+
+    # 如果传入的是目录，自动生成文件名
+    if os.path.isdir(text_save_path):
+        safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
+        text_save_path = os.path.join(text_save_path, f"{safe_title.lower()}.txt")
+
+    formatted_text = _format_transcript_with_punctuation_lines(combined_text)
+
+    os.makedirs(os.path.dirname(text_save_path), exist_ok=True)
+    with open(text_save_path, "w", encoding="utf-8") as f:
+        f.write(f"# {title}\n\n")
+        f.write(formatted_text)
+    print(f"文本已保存到: {text_save_path}")
+
+
+def _transcribe_groq(audio_path: str, api_key: str = None) -> str:
+    """使用 Groq API 转录音频（免费额度大，速度快）。
+
+    使用 curl 子进程而非 requests，与 SiliconFlow 保持一致，
+    绕过 Anaconda Python 的 OpenSSL SSL 握手兼容性问题。
+    """
+    if not api_key:
+        api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("需要设置 GROQ_API_KEY 环境变量")
+
+    url = "https://api.groq.com/openai/v1/audio/transcriptions"
+
+    # curl -F 的 file=@path 语法中，逗号会被解析为多字段分隔符
+    tmp_file = None
+    safe_path = audio_path
+    if "," in audio_path or "@" in audio_path:
+        ext = os.path.splitext(audio_path)[1] or ".mp3"
+        fd, tmp_file = tempfile.mkstemp(suffix=ext, prefix="groq_")
+        os.close(fd)
+        shutil.copy2(audio_path, tmp_file)
+        safe_path = tmp_file
+
     try:
-        return int(stem)
-    except ValueError:
-        return stem
-
-
-def _is_audio_file(filename: str) -> bool:
-    return os.path.splitext(filename)[1].lower() in AUDIO_EXTENSIONS
-
-
-def _collect_audio_paths(audio_split_folder: str) -> List[str]:
-    if os.path.isdir(audio_split_folder):
-        candidates = [
-            name
-            for name in os.listdir(audio_split_folder)
-            if _is_audio_file(name)
+        args = [
+            "curl", "-s", "-S", "--max-time", "120",
+            "-H", f"Authorization: Bearer {api_key}",
+            "-F", f"file=@{safe_path}",
+            "-F", "model=whisper-large-v3",
+            "-F", "language=zh",
+            "-F", "response_format=verbose_json",
+            "-F", "timestamp_granularities[]=segment",
+            "-F", "prompt=Please transcribe this Chinese speech and include appropriate punctuation marks such as commas, periods, question marks, and exclamation marks.",
+            url,
         ]
-        candidates.sort(key=_audio_sort_key)
-        return [os.path.join(audio_split_folder, name) for name in candidates]
-    if os.path.isfile(audio_split_folder):
-        return [audio_split_folder]
-    raise FileNotFoundError(f"音频路径不存在：{audio_split_folder}")
 
+        result = subprocess.run(args, capture_output=True, text=True, timeout=130)
+        if result.returncode != 0:
+            raise RuntimeError(f"Groq curl transcription failed: {result.stderr[:500]}")
 
-def _format_timestamp(ms_value: Optional[float]) -> str:
-    """Convert millisecond timestamp to HH:MM:SS.mmm string."""
-    if ms_value is None:
-        return "00:00:00.000"
-    total_ms = int(ms_value)
-    seconds, milliseconds = divmod(total_ms, 1000)
-    minutes, seconds = divmod(seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    return f"{hours:02}:{minutes:02}:{seconds:02}"
+        data = json.loads(result.stdout)
 
+        # 检查 API 错误响应
+        if "error" in data:
+            raise RuntimeError(f"Groq API error: {data['error']}")
 
-def _normalize_funasr_segments(
-    result: Dict[str, Any],
-    *,
-    processed_text: str,
-    postprocess_func,
-) -> List[Dict[str, Any]]:
-    """Extract sentence level segments from FunASR result."""
-    sentence_info = result.get("sentence_info") or []
-    segments: List[Dict[str, Any]] = []
-    if sentence_info:
-        for item in sentence_info:
-            text_raw = item.get("text", "")
-            text_processed = postprocess_func(text_raw) if text_raw else ""
-            segments.append(
-                {
-                    "start": item.get("start"),
-                    "end": item.get("end"),
-                    "spk": item.get("spk"),
-                    "text": text_processed.strip(),
-                }
-            )
-    else:
-        token_timestamps = result.get("timestamp") or []
-        if token_timestamps:
-            start_ms = token_timestamps[0][0]
-            end_ms = token_timestamps[-1][1]
-        else:
-            start_ms = 0
-            end_ms = 0
-        segments.append(
-            {
-                "start": start_ms,
-                "end": end_ms,
-                "spk": result.get("spk"),
-                "text": processed_text.strip(),
-            }
-        )
-    return segments
-
-
-def _write_funasr_segments(
-    output_path: str,
-    segments: List[Dict[str, Any]],
-) -> None:
-    """Write FunASR segments to file with timestamp blocks."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    previous_speaker = None
-    previous_end_ms = None
-    block_index = 0
-    with open(output_path, "w", encoding="utf-8") as txt_file:
-        for segment in segments:
-            if segment.get("reset_block"):
-                previous_speaker = None
-                previous_end_ms = None
-            start_ms = segment.get("start")
-            end_ms = segment.get("end")
-            speaker_id = segment.get("spk")
-            segment_text: str = segment.get("text", "")
-            insert_timestamp = False
-            if previous_speaker is None:
-                insert_timestamp = True
-            elif speaker_id != previous_speaker:
-                insert_timestamp = True
-            elif (
-                start_ms is not None
-                and previous_end_ms is not None
-                and start_ms - previous_end_ms > 60_000
-            ):
-                insert_timestamp = True
-
-            if insert_timestamp:
-                block_index += 1
-                start_label = _format_timestamp(start_ms)
-                end_label = _format_timestamp(end_ms)
-                speaker_label = f"SPEAK{speaker_id}" if speaker_id is not None else "SPEAK?"
-                txt_file.write(f"========== <{speaker_label}> block{block_index} {start_label} ==========\n")
-
-            if "。" in segment_text:
-                segment_text = segment_text.replace("。", "。\n")
-            txt_file.write(f"{segment_text}\n\n")
-
-            previous_speaker = speaker_id
-            if end_ms is not None:
-                previous_end_ms = end_ms
-
-def _ensure_whisper_model(load_options: Optional[Dict[str, object]] = None):
-    load_options = dict(load_options or {})
-    model_name = load_options.pop("model", load_options.pop("model_name", None))
-    if whisper_model is None:
-        load_whisper(model=model_name or "tiny", **load_options)
-    elif model_name and model_name != whisper_model_name:
-        load_whisper(model=model_name, **load_options)
-    return whisper_model
-
-
-def _transcribe_with_whisper(
-    audio_paths: Iterable[str],
-    *,
-    load_options: Optional[Dict[str, object]] = None,
-    transcribe_options: Optional[Dict[str, object]] = None,
-) -> List[str]:
-    model = _ensure_whisper_model(load_options)
-    default_options = {
-        "initial_prompt": "以下是普通话的句子, 请注意添加标点符号。",
-        "language": "zh",
-        "vad_filter": True,
-        "vad_parameters": dict(min_silence_duration_ms=500),
-        "temperature": 0.0,
-        "beam_size": 5,
-        "condition_on_previous_text": False,
-    }
-    if transcribe_options:
-        default_options.update(transcribe_options)
-
-    transcripts: List[str] = []
-    paths = list(audio_paths)
-    for idx, audio_path in enumerate(tqdm(paths, desc="Transcribing (whisper)"), start=1):
-        print(f"正在转换第{idx}个音频... {os.path.basename(audio_path)}")
-        segments, _ = model.transcribe(audio_path, **default_options)
-        text = " ".join(segment.text for segment in segments if segment.text.strip())
-        transcripts.append(text)
-    return transcripts
-
-
-def _transcribe_with_funasr(
-    audio_paths: Iterable[str],
-    *,
-    load_options: Optional[Dict[str, object]] = None,
-    generate_options: Optional[Dict[str, object]] = None,
-) -> List[Dict[str, Any]]:
-    load_options = dict(load_options or {})
-    if "model_dir" not in load_options and "model" not in load_options:
-        load_options["model_dir"] = "paraformer-zh"
-    model_dir = load_options.get("model_dir") or load_options.get("model")
-    if "model" not in load_options:
-        load_options["model"] = model_dir
-    load_options.setdefault("device", "cuda:0" if is_cuda_available() else "cpu")
-    load_options.setdefault("vad_model", "fsmn-vad")
-    load_options.setdefault("vad_kwargs", {"max_single_segment_time": 30000})
-    load_options.setdefault("spk_model", "cam++")
-    load_options.setdefault("punc_model", "ct-punc")
-    load_options.setdefault("spk_mode", "punc_segment")
-    model_dir = load_options.pop("model_dir", model_dir)
-    funasr = load_funasr(model_dir=model_dir, **load_options)
-
-    from funasr.utils.postprocess_utils import rich_transcription_postprocess
-
-    default_generate = {
-        "cache": {},
-        "language": "auto",
-        "use_itn": True,
-        "batch_size_s": 60,
-        "merge_vad": True,
-        "merge_length_s": 15,
-        "sentence_timestamp": True,
-    }
-    if generate_options:
-        default_generate.update(generate_options)
-
-    outputs: List[Dict[str, Any]] = []
-    paths = list(audio_paths)
-    cumulative_offset_ms = 0
-    for idx, audio_path in enumerate(tqdm(paths, desc="Transcribing (funasr)"), start=1):
-        print(f"正在转换第{idx}个音频... {os.path.basename(audio_path)}")
-        generate_kwargs = dict(default_generate)
-        if "cache" in generate_kwargs and isinstance(generate_kwargs["cache"], dict):
-            generate_kwargs["cache"] = dict(generate_kwargs["cache"])
-        else:
-            generate_kwargs["cache"] = {}
-        result = funasr.generate(input=audio_path, **generate_kwargs)
-        text = ""
-        segments: List[Dict[str, Any]] = []
-        if result:
-            first_result = result[0]
-            text = rich_transcription_postprocess(first_result.get("text", ""))
-            segments = _normalize_funasr_segments(
-                first_result,
-                processed_text=text,
-                postprocess_func=rich_transcription_postprocess,
-            )
-            if segments:
-                segments[0]["reset_block"] = True
-                # Keep timestamps continuous across split audio files.
-                for segment in segments:
-                    if segment.get("start") is not None:
-                        segment["start"] += cumulative_offset_ms
-                    if segment.get("end") is not None:
-                        segment["end"] += cumulative_offset_ms
-                last_end = next(
-                    (segment.get("end") for segment in reversed(segments) if segment.get("end") is not None),
-                    None,
-                )
-                if last_end is not None:
-                    cumulative_offset_ms = last_end
-        outputs.append(
-            {
-                "audio_path": audio_path,
-                "text": text,
-                "segments": segments,
-            }
-        )
-    return outputs
-
-
-
-def _write_transcript(text_save_path: str, title: str, content: str):
-    os.makedirs(text_save_path, exist_ok=True)
-    output_path = os.path.join(text_save_path, f"{title}.txt")
-    with open(output_path, "a", encoding="utf-8") as file_obj:
-        lines = [line.strip() for line in content.split("。") if line.strip()]
-        for line in lines:
-            file_obj.write(line + "。\r\n")
-    return output_path
-
-
-def _transcribe_siliconflow(audio_path: str) -> str:
-    url = "https://api.siliconflow.cn/v1/audio/transcriptions"
-    headers = {
-        "Authorization": "Bearer sk-kcrdqzlwcmdygxnmflzptjnofxzdhquhjtfjagkdcqrnodof"
-    }
-    with open(audio_path, "rb") as audio_file:
-        files = {
-            "file": (os.path.basename(audio_path), audio_file),
-            "model": (None, "FunAudioLLM/SenseVoiceSmall")
-        }
-        res = requests.post(url, headers=headers, files=files)
-        res.raise_for_status()
-        data = res.json()
+        # 使用 verbose_json 格式获取分段文本，更好地保留标点
+        segments = data.get("segments", [])
+        if segments:
+            texts = [seg.get("text", "").strip() for seg in segments if seg.get("text")]
+            result_text = " ".join(texts)
+            if result_text:
+                return result_text
+        # 如果 segments 为空或没有提取到文本，回退到顶层 text 字段
         return data.get("text", "")
+    finally:
+        if tmp_file and os.path.exists(tmp_file):
+            os.remove(tmp_file)
+
+
+def _transcribe_siliconflow(audio_path: str, api_key: str = None) -> str:
+    """使用 SiliconFlow API 转录音频（备用方案）。
+
+    使用 curl 子进程而非 requests，以绕过 Anaconda Python 的 OpenSSL 3.6.1
+    与 SiliconFlow 阿里云 SLB 之间的 TLS 握手兼容性问题。
+    macOS 系统 curl 使用 LibreSSL/SecureTransport，已被验证可正常连接。
+    """
+    if not api_key:
+        api_key = os.environ.get("SILICONFLOW_API_KEY", DEFAULT_SILICONFLOW_API_KEY)
+
+    url = "https://api.siliconflow.cn/v1/audio/transcriptions"
+
+    # curl -F 的 file=@path 语法中，逗号会被解析为多字段分隔符。
+    # 如果路径含逗号等特殊字符，先复制到临时文件再传给 curl。
+    tmp_file = None
+    safe_path = audio_path
+    if "," in audio_path or "@" in audio_path:
+        ext = os.path.splitext(audio_path)[1] or ".mp3"
+        fd, tmp_file = tempfile.mkstemp(suffix=ext, prefix="sf_")
+        os.close(fd)
+        shutil.copy2(audio_path, tmp_file)
+        safe_path = tmp_file
+
+    try:
+        args = [
+            "curl", "-s", "-S", "--max-time", "300",
+            "--noproxy", "api.siliconflow.cn",  # 国内 API 直连，绕过本地代理
+            "-H", f"Authorization: Bearer {api_key}",
+            "-F", f"file=@{safe_path}",
+            "-F", "model=FunAudioLLM/SenseVoiceSmall",
+            url,
+        ]
+
+        result = subprocess.run(args, capture_output=True, text=True, timeout=311)
+        if result.returncode != 0:
+            raise RuntimeError(f"SiliconFlow curl transcription failed: {result.stderr[:500]}")
+
+        data = json.loads(result.stdout)
+        return data.get("text", "")
+    finally:
+        if tmp_file and os.path.exists(tmp_file):
+            os.remove(tmp_file)
+
 
 @retry(stop_max_attempt_number=3, wait_fixed=2000)
 def run_speech_to_text(
@@ -372,29 +301,72 @@ def run_speech_to_text(
     audio_split_folder: str,
     text_save_path: str,
     *,
-    engine: str = "whisper",
+    engine: str = "groq",
     engine_kwargs: Optional[Dict[str, Dict[str, object]]] = None,
 ):
+    """
+    语音转文字主函数
+
+    Args:
+        title: 视频标题
+        audio_split_folder: 音频文件夹路径
+        text_save_path: 文本保存路径
+        engine: 使用的引擎，可选 "groq"（默认）或 "siliconflow"（备用）
+        engine_kwargs: 引擎参数，如 {"groq": {"api_key": "xxx"}}
+    """
     audio_paths = _collect_audio_paths(audio_split_folder)
     if not audio_paths:
         raise ValueError("未找到可用的音频文件。")
 
-    print("正在使用 SiliconFlow API 转换文本...")
+    groq_api_key = (engine_kwargs or {}).get("groq", {}).get("api_key") or os.environ.get("GROQ_API_KEY")
+    siliconflow_api_key = (
+        (engine_kwargs or {}).get("siliconflow", {}).get("api_key")
+        or os.environ.get("SILICONFLOW_API_KEY")
+        or DEFAULT_SILICONFLOW_API_KEY
+    )
+
+    # 缺少 Groq key 时，直接走备用引擎，避免先打印失败再成功的误导日志。
+    if engine == "groq" and not groq_api_key:
+        print("未检测到 GROQ_API_KEY，直接使用备用方案 SiliconFlow...")
+        engine = "siliconflow"
+
+    # 根据 engine 选择转录方法
+    if engine == "siliconflow":
+        print("正在使用 SiliconFlow API 转换文本（备用方案）...")
+        api_key = siliconflow_api_key
+        transcribe_func = lambda path: _transcribe_siliconflow(path, api_key)
+        desc = "Transcribing (SiliconFlow)"
+    else:  # 默认使用 groq
+        print("正在使用 Groq API 转换文本...")
+        api_key = groq_api_key
+        transcribe_func = lambda path: _transcribe_groq(path, api_key)
+        desc = "Transcribing (Groq)"
+
     transcripts = []
-    
-    for idx, audio_path in enumerate(tqdm(audio_paths, desc="Transcribing (SiliconFlow)"), start=1):
+
+    for idx, audio_path in enumerate(tqdm(audio_paths, desc=desc), start=1):
         print(f"正在转换第{idx}个音频... {os.path.basename(audio_path)}")
         try:
-            text = _transcribe_siliconflow(audio_path)
+            text = transcribe_func(audio_path)
             if text:
                 transcripts.append(text)
         except Exception as e:
             print(f"转换音频 {audio_path} 失败: {e}")
+            # 如果是 Groq 失败，尝试切换到 SiliconFlow
+            if engine == "groq":
+                print("尝试使用备用方案 SiliconFlow...")
+                try:
+                    text = _transcribe_siliconflow(audio_path, siliconflow_api_key)
+                    if text:
+                        transcripts.append(text)
+                        continue
+                except Exception as e2:
+                    print(f"备用方案也失败: {e2}")
             raise e
 
     combined = "\n".join(text for text in transcripts if text)
     print(combined)
-    
+
     punctuation_count = sum(combined.count(mark) for mark in (",", "，", "。", ".", "！", "？"))
     if punctuation_count < 3 and len(combined) > 50:
         print("警告：音频转换文本标点极少！")

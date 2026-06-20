@@ -36,12 +36,37 @@ class JobResult:
         return self.status == "skipped"
 
 def sanitize_title(raw_title: str, fallback: str) -> str:
-    title = raw_title.strip()
-    invalid_chars = r'<>:"/\\|?*'
-    translation = str.maketrans({ch: " " if ch in {",", ";"} else "" for ch in invalid_chars + ",;."})
-    title = title.translate(translation)
+    """与 speech2text._write_transcript / resolve_transcript_output_path 使用同一套 sanitize 逻辑。"""
+    title = (raw_title or "").strip()
+    title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
     title = " ".join(title.split())
-    return title or fallback
+    return (title or fallback).lower()
+
+
+def resolve_transcript_output_path(text_dir: str, title: str) -> str:
+    """Mirror speech2text._write_transcript() naming for existence checks."""
+    safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in title)
+    return os.path.join(text_dir, f"{safe_title.lower()}.txt")
+
+
+def _is_valid_transcript(path: str, min_content_bytes: int = 50) -> bool:
+    """检查转录文件是否有效（不只是标题头）。
+
+    防止空内容或只有 '# title\\n\\n' 头部的残缺文件触发 skip_existing 永久跳过。
+    """
+    if not os.path.exists(path):
+        return False
+    if os.path.getsize(path) < min_content_bytes:
+        return False
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except (OSError, UnicodeDecodeError):
+        return False
+    # 去掉 "# title\n\n" 头部，检查是否有实质内容
+    lines = content.split("\n", 2)
+    body = lines[2] if len(lines) > 2 else ""
+    return len(body.strip()) > 0
 
 class BiliSpeechPipeline:
     def __init__(
@@ -134,15 +159,22 @@ class BiliSpeechPipeline:
             extract_real_audio_url,
             audio_stream_download,
             restore_original_video_title,
+            download_subtitle,
+            srt_to_text,
         )
-        from speech2text import run_speech_to_text
+        from speech2text import run_speech_to_text, _write_transcript, restore_punctuation
         from exAudio import run_split
         start = time.time()
         # 视频下载路径
         video_dir, audio_dir, text_path = self.ensure_paths(job)
-        if skip_existing and os.path.exists(os.path.join(text_path, f"{job.title}.txt")):
-            print(f"==== 跳过已存在: {text_path}  ====")
+        transcript_path = resolve_transcript_output_path(text_path, job.title)
+        if skip_existing and _is_valid_transcript(transcript_path):
+            print(f"==== 跳过已存在: {transcript_path}  ====")
             return JobResult(job=job, status="skipped", elapsed=0.0, message="transcript already exists")
+        elif skip_existing and os.path.exists(transcript_path):
+            # 文件存在但内容无效（残缺），删除后重跑
+            print(f"==== 发现残缺文件，删除后重跑: {transcript_path}  ====")
+            os.remove(transcript_path)
         if job.url and type(job.title) == str and len(job.title) > 0:
             print(f"==== 开始处理: {job.title} ({job.url}) ====")
         try:
@@ -157,6 +189,22 @@ class BiliSpeechPipeline:
                 audio_stream_download(asset_url, audio_target_path)
                 audio_input = audio_target_path
             else:
+                # 优先尝试下载字幕（快速路径，无需下载视频+ASR）
+                srt_path = download_subtitle(job.url, video_dir, video_type=job.video_type)
+                if srt_path:
+                    print(f"[subtitle] 字幕下载成功，跳过 ASR: {srt_path}")
+                    transcript = srt_to_text(srt_path)
+                    if transcript and transcript.strip():
+                        print("[subtitle] 正在恢复标点符号...")
+                        transcript = restore_punctuation(transcript)
+                        _write_transcript(text_path, job.title, transcript)
+                        elapsed = time.time() - start
+                        print(f"==== 完成(字幕): {job.title}，耗时 {elapsed:.2f} 秒 ====")
+                        return JobResult(job=job, status="success", elapsed=elapsed, message="subtitle")
+                    else:
+                        print("[警告] 字幕内容为空，回退到 ASR 路径")
+
+                # 无字幕（或字幕为空），走下载视频 → 音频切片 → ASR 管线
                 download_audio_new(
                     job.url,
                     job.title,
@@ -166,7 +214,7 @@ class BiliSpeechPipeline:
                 )
                 audio_split_dir = run_split(job.title, video_dir, audio_dir)
                 audio_input = audio_split_dir
-            run_speech_to_text(job.title, audio_input, text_path, engine="funasr")
+            run_speech_to_text(job.title, audio_input, text_path, engine="groq")
             if job.media_type != "podcasts":
                 restore_original_video_title(job.url, job.title, video_dir, job.video_type)
             elapsed = time.time() - start
@@ -203,12 +251,15 @@ if __name__=="__main__":
         jobs = pipeline.build_jobs_from_excel("bili", "深读一书") # ，系统性思考
     else:
         jobs = [
-            # VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
-            # title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
-            VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV19zcqz5ETm',
-            title='这种冰危险吗', sheet_name='自定义', video_type='bili'),
-            VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=NUeluCHIf8A',
-            title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
+            #VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',
+            #  title='【正片】周鸿祎×罗永浩！近四小时高密度输出！周鸿祎深度谈 AI', sheet_name='自定义', video_type='bili'),
+            #VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV19zcqz5ETm',
+            #title='这种冰危险吗', sheet_name='自定义', video_type='bili'),
+            #VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=NUeluCHIf8A',
+            #title='中美翻脸了，终于等到一个绝好的加仓机会了', sheet_name='自定义', video_type='youtube'),
+            #]
+            VideoJob(media_type='bili', url='https://www.youtube.com/watch?v=Vgah1K2Qfec&t=173s',
+            title='codex openclaw', sheet_name='自定义', video_type='youtube'),
             ]
     print(jobs)
 

@@ -6,6 +6,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "bili2text"))
 
 from bili2text.main import BiliSpeechPipeline, VideoJob
 
+
+def _resolve_transcript_path(text_dir: str, title: str) -> str:
+    """Mirror speech2text._write_transcript() naming so MCP returns the real file path."""
+    safe_title = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_" for c in title)
+    return os.path.join(text_dir, f"{safe_title.lower()}.txt")
+
 def extract_text_from_video(url: str, title: str, media_type: str = None) -> dict:
     """
     最小提取调用 Demo，适合用于封装 MCP 等服务。
@@ -57,7 +63,7 @@ def extract_text_from_video(url: str, title: str, media_type: str = None) -> dic
         # 成功或跳过时，可以计算出最终文本的保存路径
         from src.tools_data_process.utils_path import get_root_media_save_path
         _, text_path, _ = pipeline.ensure_paths(job)
-        final_txt_file = os.path.join(text_path, f"{job.title}.txt")
+        final_txt_file = _resolve_transcript_path(text_path, job.title)
         response["text_file_path"] = final_txt_file
         
         # 如果需要直接返回提取出的文本：

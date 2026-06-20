@@ -13,6 +13,7 @@ import subprocess
 import requests
 from src.tools_data_process.utils_path import get_project_root
 from platform import system
+from typing import Optional
 
 def _get_ytdlp_bin() -> str:
     """获取 yt-dlp 可执行文件路径。优先级: 环境变量 > PATH > 项目内置二进制。"""
@@ -53,34 +54,42 @@ def _get_youget_bin() -> str:
     return "you-get"
 
 
-def _resolve_proxy() -> str:
+def _resolve_proxy_with_source() -> tuple[Optional[str], Optional[str]]:
     """
-    解析下载代理，优先读取环境变量，默认回落到本机代理端口。
+    解析显式配置的下载代理。
     """
-    for key in ("YTDLP_PROXY", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+    for key in ("YTDLP_PROXY", "YOUTUBE_PROXY", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
         value = (os.environ.get(key) or "").strip()
         if value:
-            return value
-    return "http://127.0.0.1:7897"
+            return value, key
+    return None, None
 
 
-def _resolve_youtube_proxy() -> str:
+def _resolve_proxy() -> Optional[str]:
+    proxy, _source = _resolve_proxy_with_source()
+    return proxy
+
+
+def _resolve_youtube_proxy() -> Optional[str]:
     """
-    解析 YouTube 下载代理，优先读取环境变量，默认回落到本机代理端口。
+    解析显式配置的 YouTube 下载代理；未配置时不传应用层代理。
     仅 YouTube 流程使用，避免影响其他站点。
     （向后兼容，实际调用 _resolve_proxy）
     """
     return _resolve_proxy()
 
 
+def _resolve_youtube_proxy_with_source() -> tuple[Optional[str], Optional[str]]:
+    return _resolve_proxy_with_source()
+
+
 def _youtube_ytdlp_network_args():
     """
-    YouTube 专用：增强网络容错，降低代理链路抖动导致的 EOF/超时失败。
+    YouTube 专用：增强网络容错，降低网络链路抖动导致的 EOF/超时失败。
     """
-    proxy = _resolve_youtube_proxy()
-    return [
+    proxy, source = _resolve_youtube_proxy_with_source()
+    args = [
         "--js-runtimes", "node",
-        "--proxy", proxy,
         "--retries", "30",
         "--fragment-retries", "30",
         "--extractor-retries", "5",
@@ -88,21 +97,155 @@ def _youtube_ytdlp_network_args():
         "--socket-timeout", "30",
         "--force-ipv4",
     ]
+    if proxy:
+        print(f"[youtube] using explicit proxy from {source}: {proxy}", file=sys.stderr)
+        args.extend(["--proxy", proxy])
+    return args
 
 
 def _bili_ytdlp_network_args():
     """
-    Bilibili 专用：保留代理与重试，但不强制 curl/impersonate。
+    Bilibili 专用：禁用 yt-dlp 应用层代理并保留重试，不强制 curl/impersonate。
     实测某些 CDN 音频分片在 curl_cffi/impersonate 路径下会出现 TLS 失败。
     """
-    proxy = _resolve_proxy()
     return [
-        "--proxy", proxy,
+        "--proxy", "",
         "--socket-timeout", "30",
         "--retries", "20",
         "--fragment-retries", "20",
         "--extractor-retries", "5",
     ]
+
+
+def _fetch_video_title(ytdlp: str, url: str, extra_args: list) -> Optional[str]:
+    """用 yt-dlp --print 获取视频标题，用于匹配字幕文件名。"""
+    args = [ytdlp, "--skip-download", "--print", "%(title)s", url] + extra_args
+    result = subprocess.run(args, capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        return None
+    lines = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+    return lines[-1] if lines else None
+
+
+def _find_subtitle_by_title(save_dir: str, title: str) -> Optional[str]:
+    """根据视频标题在目录中匹配字幕文件（格式: {title}.{lang}.srt）。
+
+    对标题和文件名都做 sanitize，以匹配 yt-dlp 保存文件时的行为。
+    """
+    if not title:
+        return None
+
+    _LANG_RE = re.compile(r'^[a-z]{2,3}(-[A-Za-z]{2,4})?$')
+
+    def _normalize(t: str) -> str:
+        """只做小写 + 空格折叠，保留标点，对齐 yt-dlp 实际文件名。"""
+        t = (t or "").strip()
+        t = " ".join(t.split())
+        return t.lower()
+
+    norm_title = _normalize(title)
+    for f in os.listdir(save_dir):
+        if not f.endswith(".srt"):
+            continue
+        # 去掉 .srt 和可能的语言后缀
+        stem = f[:-4]
+        if "." in stem:
+            potential_lang = stem.rsplit(".", 1)[1]
+            if _LANG_RE.match(potential_lang):
+                stem = stem.rsplit(".", 1)[0]
+        norm_stem = _normalize(stem)
+        if norm_stem == norm_title:
+            return os.path.join(save_dir, f)
+    return None
+
+
+def download_subtitle(url: str, save_dir: str, video_type: str = "bili") -> Optional[str]:
+    """
+    尝试用 yt-dlp 下载视频字幕（不下载视频本身）。
+    返回下载的 .srt 文件路径，无字幕时返回 None。
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    ytdlp = _get_ytdlp_bin()
+    is_youtube = _is_youtube_source(url, video_type)
+    is_bili = "bilibili.com" in (url or "") or video_type == "bili"
+
+    # 构建网络参数
+    if is_youtube:
+        network_args = _youtube_ytdlp_network_args()
+    elif is_bili:
+        network_args = _bili_ytdlp_network_args()
+    else:
+        network_args = []
+
+    cookie_file = _resolve_cookie_file(video_type)
+    cookie_args = ["--cookies", cookie_file] if os.path.exists(cookie_file) else []
+
+    # 先获取视频标题，用于精确匹配字幕文件
+    title = _fetch_video_title(ytdlp, url, network_args + cookie_args)
+    if not title:
+        print(f"[subtitle] Could not fetch video title for {url}")
+        return None
+    print(f"[subtitle] Video title: {title}")
+
+    # 如果目录里已有该视频的字幕，直接返回
+    existing = _find_subtitle_by_title(save_dir, title)
+    if existing:
+        print(f"[subtitle] Already exists: {existing}")
+        return existing
+
+    # 语言优先级：中文优先，最后兜底全部
+    if is_bili:
+        lang_attempts = ["ai-zh", "--all-subs"]
+    elif is_youtube:
+        lang_attempts = ["zh-Hans,zh-Hant,zh,zh-CN", "en", "--all-subs"]
+    else:
+        lang_attempts = ["zh", "en", "--all-subs"]
+
+    for langs in lang_attempts:
+        args = [
+            ytdlp,
+            "--skip-download",
+            "--write-subs",
+            "--write-auto-subs",
+            "--convert-subs", "srt",
+            "-o", os.path.join(save_dir, "%(title)s"),
+            url,
+        ]
+        if langs == "--all-subs":
+            args.insert(3, "--all-subs")
+        else:
+            args.extend(["--sub-langs", langs])
+        args.extend(network_args)
+        args.extend(cookie_args)
+
+        print(f"[subtitle] Trying langs={langs}")
+        result = subprocess.run(args, capture_output=True, text=True)
+
+        # 根据视频标题精确匹配字幕文件
+        srt_path = _find_subtitle_by_title(save_dir, title)
+        if srt_path:
+            print(f"[subtitle] Found: {srt_path}")
+            return srt_path
+
+    print(f"[subtitle] No subtitles found for {url}")
+    return None
+
+
+def srt_to_text(srt_path: str) -> str:
+    """将 SRT 字幕文件转换为纯文本（去掉序号和时间轴）。"""
+    lines = []
+    with open(srt_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            # 序号行：纯数字且较短（避免误过滤内容行如 "2024"）
+            if re.match(r'^\d{1,6}$', line):
+                continue
+            if "-->" in line:
+                continue
+            lines.append(line)
+    return "\n".join(lines)
 
 
 def _get_ytdlp_version(ytdlp_bin: str) -> str:
@@ -135,6 +278,7 @@ def _build_download_failure_guidance(
     ytdlp_version: str,
     cookie_file: str,
     has_cookie_file: bool,
+    stderr: str = "",
 ) -> str:
     cmd_text = " ".join(shlex.quote(item) for item in (cmd_args or []))
     lines = [
@@ -146,14 +290,26 @@ def _build_download_failure_guidance(
         f"command={cmd_text}",
     ]
 
+    if stderr:
+        lines.extend(["", "原始报错 (stderr):", stderr[-2000:]])
+
+    is_bili_source = (
+        "bili" in (video_type or "").lower()
+        or "bilibili.com" in (url or "")
+        or "b23.tv" in (url or "")
+    )
+
     if _is_youtube_source(url, video_type):
-        proxy_hint = _resolve_youtube_proxy()
+        proxy_hint, proxy_source = _resolve_youtube_proxy_with_source()
+        proxy_text = proxy_hint or "未显式配置（依赖 TUN/系统网络路径）"
+        if proxy_source:
+            proxy_text = f"{proxy_text} (source={proxy_source})"
         lines.extend(
             [
                 "",
                 "排查建议(YouTube):",
-                "1) 先确认代理链路稳定（可访问 youtube.com 和 googlevideo.com）。",
-                f"2) 当前代理解析值: {proxy_hint}",
+                "1) 先确认网络链路稳定（可访问 youtube.com 和 googlevideo.com）。",
+                f"2) 当前显式代理解析值: {proxy_text}",
                 "3) 检查日志关键词: UNEXPECTED_EOF / timed out / Sign in / 403。",
                 "4) 确认 Node 可用（--js-runtimes node 依赖 node）。",
                 "5) 先跑内置排查用例（在 RPA 项目根目录执行）：",
@@ -166,14 +322,22 @@ def _build_download_failure_guidance(
             lines.append(f"6) cookies 文件已存在: {cookie_file}")
         else:
             lines.append(f"6) cookies 文件不存在，请重新导出: {cookie_file}")
+    elif is_bili_source:
+        lines.extend(
+            [
+                "",
+                "排查建议(Bilibili):",
+                "1) HTTP 412 优先检查 cookies 是否为完整登录态，尤其需要 SESSDATA。",
+                f"2) 当前 cookies 文件: {cookie_file} ({'存在' if has_cookie_file else '不存在'})",
+                "3) 重新导出 cookies 后直接重试；不要只复制 document.cookie，可能缺 HttpOnly 字段。",
+            ]
+        )
     else:
         lines.extend(
             [
                 "",
                 "排查建议:",
-                "1) 检查 URL 是否有效、视频是否可访问。",
-                "2) 检查站点 cookies 文件是否存在并可读。",
-                "3) 复用上面 command 在终端直接执行，查看底层 ERROR 输出。",
+                "1) 复用上面 command 在终端直接执行，查看底层 ERROR 输出。",
             ]
         )
     return "\n".join(lines)
@@ -286,9 +450,10 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
         last_args = []
         last_stage = "unknown"
         last_return_code = None
+        last_stderr = ""
 
         def _run_cmd(args, stage):
-            nonlocal last_args, last_stage, last_return_code
+            nonlocal last_args, last_stage, last_return_code, last_stderr
             last_args = list(args)
             last_stage = stage
             print(" ".join(shlex.quote(item) for item in args))
@@ -300,7 +465,13 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
                 if node_path not in current_path:
                     env["PATH"] = f"{node_path}:{current_path}"
                     current_path = env["PATH"]
-            last_return_code = subprocess.call(args, env=env)
+            result = subprocess.run(args, env=env, capture_output=True, text=True)
+            last_return_code = result.returncode
+            last_stderr = result.stderr or ""
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr, file=sys.stderr)
             return last_return_code
 
         def _run_cmd_with_retry(args, stage, retry_count=1, sleep_seconds=30):
@@ -334,8 +505,7 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
             if has_cookie_file:
                 args.extend(["-b", cookie_file])
             
-            proxy = _resolve_proxy()
-            args.extend(["-x", proxy])
+            # Bilibili 是境内站点，curl fallback 不走代理
             args.append(url)
             
             result = subprocess.run(args, capture_output=True, text=True)
@@ -386,9 +556,10 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
             elif is_bili:
                 args.extend(_bili_ytdlp_network_args())
             else:
-                # Bilibili/Douyin 也需要代理
-                proxy = _resolve_proxy()
-                args.extend(["--proxy", proxy])
+                proxy, proxy_source = _resolve_proxy_with_source()
+                if proxy:
+                    print(f"[yt-dlp] using explicit proxy from {proxy_source}: {proxy}", file=sys.stderr)
+                    args.extend(["--proxy", proxy])
             if has_cookie_file:
                 args.extend(["--cookies", cookie_file])
             result = _run_cmd_with_retry(args, stage="video_download", retry_count=1, sleep_seconds=30)
@@ -410,6 +581,7 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
                         ytdlp_version=_ytdlp_version,
                         cookie_file=cookie_file,
                         has_cookie_file=has_cookie_file,
+                        stderr=last_stderr,
                     )
                 )
 
@@ -432,9 +604,10 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
             elif is_bili:
                 args.extend(_bili_ytdlp_network_args())
             else:
-                # Bilibili/Douyin 也需要代理
-                proxy = _resolve_proxy()
-                args.extend(["--proxy", proxy])
+                proxy, proxy_source = _resolve_proxy_with_source()
+                if proxy:
+                    print(f"[yt-dlp] using explicit proxy from {proxy_source}: {proxy}", file=sys.stderr)
+                    args.extend(["--proxy", proxy])
             if has_cookie_file:
                 args.extend(["--cookies", cookie_file])
             result = _run_cmd_with_retry(args, stage="audio_extract", retry_count=1, sleep_seconds=30)
@@ -450,6 +623,7 @@ def download_audio_new(url, title, video_save_dir=None, autio_save_dir=None, vid
                         ytdlp_version=_ytdlp_version,
                         cookie_file=cookie_file,
                         has_cookie_file=has_cookie_file,
+                        stderr=last_stderr,
                     )
                 )
         return title
@@ -513,19 +687,12 @@ def _find_downloaded_video_path(video_save_dir: str, temp_title: str):
 def _fetch_remote_video_title(url: str, video_type: str):
     ytdlp = _get_ytdlp_bin()
     cookie_file = _resolve_cookie_file(video_type)
-    args = [ytdlp, "--skip-download", "--print", "%(title)s", url]
+    extra_args = []
     if _is_youtube_source(url, video_type):
-        args.extend(_youtube_ytdlp_network_args())
+        extra_args.extend(_youtube_ytdlp_network_args())
     if os.path.exists(cookie_file):
-        args.extend(["--cookies", cookie_file])
-
-    result = subprocess.run(args, capture_output=True, text=True)
-    if result.returncode != 0:
-        return None
-    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    if not lines:
-        return None
-    return lines[-1]
+        extra_args.extend(["--cookies", cookie_file])
+    return _fetch_video_title(ytdlp, url, extra_args)
 
 
 def restore_original_video_title(url: str, temp_title: str, video_save_dir: str, video_type: str = "bili") -> str:
