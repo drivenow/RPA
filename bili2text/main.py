@@ -248,7 +248,16 @@ if __name__=="__main__":
         # jobs = pipeline.build_jobs_from_excel("bili", "15741969")
         # jobs = pipeline.build_jobs_from_excel("youtube_browser", "stone记")
         # jobs = pipeline.build_jobs_from_excel("podcasts", "科学有故事")
-        jobs = pipeline.build_jobs_from_excel("bili", "深读一书") # ，系统性思考
+        # jobs = pipeline.build_jobs_from_excel("bili", "深读一书") # ，系统性思考
+        # for sheet_name in ['全球宏观FICC 合集·个人成长', '宏观阿尔法 合集·【周一】社会热点（科学、经济、政治）', '宏观阿尔法 合集·【会员深水区】意识和灵魂',
+        #                    '东兴苟十三 合集·西方文学', '宏观阿尔法 合集·【周日】前沿科学解答千年的困惑', '慢学AI 合集·多agent', '宏观阿尔法 合集·【周六】用佛学解构名著', '宏观阿尔法 合集·【会员】理性之火_斯多葛修行录',
+        #                    '宏观阿尔法 合集·【周五】关于修行的故事', '宏观阿尔法 合集·【周四】顺着佛法的历史脉络修行', '慢学AI 合集·memory', '宏观阿尔法 合集·【周二】用现代语言解构佛学', '慢学AI 合集·harness engineering',
+        #                    '全球宏观FICC 合集·职场提升', '渤海小吏 合集·官场笔记', '宏观阿尔法 合集·【周日】天道审判人道', '宏观阿尔法 合集·【周三】AI、意识和哲思', '慢学AI 合集·产研转型', '15741969',
+        #                    '慢学AI 合集·agent建设', '渤海小吏 合集·安史之乱', '宏观阿尔法 合集·宏观阿尔法', '东兴苟十三 合集·天下棋局', '慢学AI 合集·claude code', '渤海小吏 合集·进化缓慢的人性',
+        #                    '慢学AI 合集·评测体系Evals', '慢学AI 合集·上下文工程context engineeri', '渤海小吏 合集·三国争霸', '慢学AI 合集·deep research agent', '东兴苟十三 合集·中国文学',
+        #                    '宏观阿尔法 合集·【会员】理性之火：斯多葛修行录']:
+        for sheet_name in ["403375255"]:
+            jobs.extend(pipeline.build_jobs_from_excel("bili", sheet_name)) # 渤海小吏
     else:
         jobs = [
             #VideoJob(media_type='bili', url='https://www.bilibili.com/video/BV1hNJ1zLEb8',

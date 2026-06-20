@@ -82,14 +82,12 @@ class ExcelEngine:
         if not df_dict:
             return
 
-        if not Path(file_name).exists():
-            os.makedirs(os.path.dirname(file_name), exist_ok=True)
-            empty_df = pd.DataFrame()
-            with pd.ExcelWriter(file_name) as writer:
-                # 将空的DataFrame写入文件
-                empty_df.to_excel(writer, sheet_name=list(df_dict.keys())[0], index=False)
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
+        # 删除已有文件避免openpyxl解析损坏的列宽属性
+        if Path(file_name).exists():
+            os.remove(file_name)
 
-        with pd.ExcelWriter(file_name, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        with pd.ExcelWriter(file_name, engine='openpyxl') as writer:
             date = file_name.split('.')[0].split('_')[-1]
             for sheet_name, df in df_dict.items():
                 df.insert(0, '重要性', "")
@@ -137,21 +135,21 @@ class ExcelEngine:
                 existing_data = {}
 
             # 读取源文件的数据并更新到目标数据中
-            with pd.ExcelWriter(main_file_name, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                for sheet_name in source_sheets:
-                    df = pd.read_excel(sub_file_name, sheet_name=sheet_name)
-                    # print(target_sheets, drop_duplicates_columns)
-                    if sheet_name in target_sheets:
-                        existing_data[sheet_name] = pd.concat([existing_data[sheet_name], df]).drop_duplicates(
-                            subset=drop_duplicates_columns, keep='first')
-                        print(f"已处理sheet: {sheet_name}")
-                    else:
-                        existing_data[sheet_name] = df
-                        if sheet_name not in target_sheets:
-                            target_sheets.append(sheet_name)
-                        print(f"已处理sheet: {sheet_name}")
+            for sheet_name in source_sheets:
+                df = pd.read_excel(sub_file_name, sheet_name=sheet_name)
+                if sheet_name in target_sheets:
+                    existing_data[sheet_name] = pd.concat([existing_data[sheet_name], df]).drop_duplicates(
+                        subset=drop_duplicates_columns, keep='first')
+                    print(f"已处理sheet: {sheet_name}")
+                else:
+                    existing_data[sheet_name] = df
+                    if sheet_name not in target_sheets:
+                        target_sheets.append(sheet_name)
+                    print(f"已处理sheet: {sheet_name}")
 
-                # 写入目标文件中其他未被覆盖的sheet
+            # 删除旧文件，重新写入，避免openpyxl解析损坏的列宽属性
+            os.remove(main_file_name)
+            with pd.ExcelWriter(main_file_name, engine='openpyxl') as writer:
                 for sheet in target_sheets:
                     existing_data[sheet].to_excel(writer, sheet_name=sheet, index=False)
                     print(f"保留原有sheet: {sheet}")
