@@ -237,33 +237,36 @@ E:\anaconda\envs\wechatapp\python.exe -c "import json,collections; p='tmp/bili_4
 
 ## Long-Running Tasks (Critical)
 
-**Claude 会话启动的子进程会被会话清理机制终止**（无论用 `run_in_background`、bash `&`、还是 `Start-Process`）。进程会在 1-2 分钟内被杀，无 traceback、无 exit code。
+**Claude 会话启动的子进程会被会话清理机制终止**（无论用 `run_in_background`、bash `&`、还是 `Start-Process`）。无 traceback、无 exit code。
 
-对于需要长时间运行的任务（批量转文字、大批量爬取等），**必须使用 Windows 计划任务**：
+### 首选：独立 PowerShell 窗口
+
+最简单、最透明的方式。让用户在 Windows 桌面手动打开一个 PowerShell 窗口运行：
 
 ```powershell
-# 1. 创建包装脚本（带日志重定向）
-# 参考 X:\RPA\bili2text\run_with_diag.bat
+cd X:\RPA
+E:\anaconda\envs\wechatapp\python.exe bili2text\batch_process_ups.py --skip-sync 2>&1 | Tee-Object -FilePath X:\RPA\bili2text\batch_transcribe.log
+```
 
-# 2. 注册计划任务
+或后台运行（窗口可关闭）：
+
+```powershell
+Start-Process -FilePath "E:\anaconda\envs\wechatapp\python.exe" -ArgumentList "bili2text\batch_process_ups.py","--skip-sync" -WorkingDirectory "X:\RPA" -RedirectStandardOutput "X:\RPA\bili2text\batch_transcribe.log" -RedirectStandardError "X:\RPA\bili2text\batch_transcribe.log.err" -WindowStyle Hidden
+```
+
+优点：不受会话清理影响，能实时看输出，容易停止/重启。
+
+### 备选：Windows 计划任务
+
+适合真正无人值守的场景（如定时爬取）：
+
+```powershell
 $action = New-ScheduledTaskAction -Execute "X:\path\to\wrapper.bat" -WorkingDirectory "X:\RPA"
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(3)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 Register-ScheduledTask -TaskName "TaskName" -Action $action -Trigger $trigger -Settings $settings -Force
-
-# 3. 启动
 Start-ScheduledTask -TaskName "TaskName"
-
-# 4. 查看状态
-Get-ScheduledTask -TaskName "TaskName"
-Get-Process -Name python*
-
-# 5. 停止
-Stop-ScheduledTask -TaskName "TaskName"
-Unregister-ScheduledTask -TaskName "TaskName" -Confirm:$false
 ```
-
-计划任务由 Windows 任务计划程序服务管理，完全独立于 Claude 会话。即使关掉终端、注销登录，任务都会继续跑。
 
 **注意：** 短时间任务（几分钟内完成的）仍可用 `run_in_background`。
 
