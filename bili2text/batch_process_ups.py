@@ -73,22 +73,37 @@ def load_state(state_file: Path) -> dict:
 
 
 def save_state(state_file: Path, state: dict) -> None:
-    """保存断点状态。"""
+    """保存断点状态（原子写入，防并发冲突）。"""
     state_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(state_file, "w", encoding="utf-8") as f:
+    tmp = state_file.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
+    tmp.replace(state_file)  # 原子替换
 
 
 def mark_processed(state_file: Path, state: dict, bvid: str, status: str, sheet: str) -> None:
-    """标记一个 bvid 已处理。"""
+    """标记一个 bvid 已处理（带文件锁，防并发覆盖）。"""
     if not bvid:
         return
-    state["processed_bvids"][bvid] = {
-        "status": status,
-        "sheet": sheet,
-        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    save_state(state_file, state)
+    import msvcrt
+    lock_file = state_file.with_suffix(".lock")
+    with open(lock_file, "w") as lf:
+        msvcrt.locking(lf.fileno(), msvcrt.LK_LOCK, 1)  # 阻塞等锁
+        try:
+            # 重新读取最新状态，合并后再写
+            fresh = load_state(state_file)
+            fresh["processed_bvids"][bvid] = {
+                "status": status,
+                "sheet": sheet,
+                "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            # 合并 paid_bvids 缓存
+            if "paid_bvids" in state:
+                fresh.setdefault("paid_bvids", {}).update(state["paid_bvids"])
+            state.update(fresh)
+            save_state(state_file, fresh)
+        finally:
+            msvcrt.locking(lf.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def should_skip_checkpoint(entry) -> tuple[bool, str]:
