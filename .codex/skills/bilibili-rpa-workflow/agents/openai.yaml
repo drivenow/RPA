@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bilibili RPA Workflow"
+  short_description: "Bilibili collection capture and processing"
+  default_prompt: "Use $bilibili-rpa-workflow to run the Bilibili collection capture, database write, and post-processing workflow."

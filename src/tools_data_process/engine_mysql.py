@@ -16,12 +16,15 @@ class MysqlEngine:
         return cls._instance  # 始终返回同一个实例
 
     def __init__(self):
+        if hasattr(self, '_initialized'):
+            return
         # 连接数据库
         self.db = pymysql.connect(host='192.168.1.2', port = 3306, user='admin', password='ybsDW246401.', db='mydatabase',
                                   charset='utf8')
         # 创建connection，用pandas 读取表
         self.cursor = self.db.cursor()
         self.bili_statis_df = self.__get_bili_statitics()
+        self._initialized = True
 
     def __del__(self):
         # 关闭数据库连接
@@ -104,11 +107,11 @@ class MysqlEngine:
         season_id AS season_id
 
     FROM `b站搜索结果` )  a
-    where 采集时间 >= "{}" and 采集时间 <= "{}"
+    where 采集时间 >= %s and 采集时间 <= %s
     order by 播放数 desc,`发布时间` desc
     ;
-        """.format(start_date, end_date)
-        self.cursor.execute(sql)
+        """
+        self.cursor.execute(sql, (start_date, end_date))
         results = self.cursor.fetchall()
         # 抓换为DataFrame格式
         results = pd.DataFrame(results, columns=[
@@ -136,7 +139,7 @@ class MysqlEngine:
 
         results["搜索词"] = results.apply(lambda x: get_poster(x), axis=1)
         results["url"] = results["bvid"].apply(lambda x: "https://www.bilibili.com/video/{}".format(x) if x else None)
-        search_word = results["搜索词"].unique().tolist()
+        search_word = [w for w in results["搜索词"].unique().tolist() if w is not None and str(w).strip()]
         print("execute_bili_vidio_sql 搜索词：", search_word)
         result_dict = {}
         for word in search_word:
@@ -410,25 +413,26 @@ class MysqlEngine:
         if end_date is None:
             end_date = datetime.now().strftime('%Y-%m-%d')
         sql = """
-        select gk_id,    
-             DATE_FORMAT(gk_createtime, '%Y-%m-%d') AS 采集时间,
-            `gk_updatetime` AS `修改时间`, 
-            `comm_msg_info.id` AS `消息ID`, 
-            `comm_msg_info.type` AS `消息类型`, 
-            `comm_msg_info.datetime` AS `消息时间`, 
-            `comm_msg_info.fakeid` AS `用户假ID`, 
-            `app_msg_ext_info.title` AS `文章标题`, 
-            `app_msg_ext_info.digest` AS `文摘`, 
-            `app_msg_ext_info.content` AS `文章内容`, 
-            `app_msg_ext_info.content_url` AS `内容链接`, 
-            `app_msg_ext_info.cover` AS `封面图`, 
-            `app_msg_ext_info.author` AS `作者`, 
+        select gk_id,
+             DATE_FORMAT(gk_createtime, '%%Y-%%m-%%d') AS 采集时间,
+            `gk_updatetime` AS `修改时间`,
+            `comm_msg_info.id` AS `消息ID`,
+            `comm_msg_info.type` AS `消息类型`,
+            `comm_msg_info.datetime` AS `消息时间`,
+            `comm_msg_info.fakeid` AS `用户假ID`,
+            `app_msg_ext_info.title` AS `文章标题`,
+            `app_msg_ext_info.digest` AS `文摘`,
+            `app_msg_ext_info.content` AS `文章内容`,
+            `app_msg_ext_info.content_url` AS `内容链接`,
+            `app_msg_ext_info.cover` AS `封面图`,
+            `app_msg_ext_info.author` AS `作者`,
             `app_msg_ext_info.copyright_stat` AS `版权状态`,
             __biz AS `公众号ID`
         FROM `公众号主页历史文章`
+        WHERE DATE(`comm_msg_info.datetime`) >= %s AND DATE(`comm_msg_info.datetime`) <= %s
             order by `消息时间` desc;
-        """.format(start_date, end_date)
-        self.cursor.execute(sql)
+        """
+        self.cursor.execute(sql, (start_date, end_date))
         results = self.cursor.fetchall()
         # 抓换为DataFrame格式
         results = pd.DataFrame(results,
@@ -474,10 +478,9 @@ class MysqlEngine:
                 encryptJobId,
                 lid
             FROM `boss直聘职位列表` ) a
-            where 采集时间 >= "{}" and 采集时间 <= "{}";
-            """.format(start_date, end_date)
-        print(sql)
-        self.cursor.execute(sql)
+            where 采集时间 >= %s and 采集时间 <= %s;
+            """
+        self.cursor.execute(sql, (start_date, end_date))
         results = self.cursor.fetchall()
         # 抓换为DataFrame格式
         results = pd.DataFrame(results, columns=[
@@ -514,12 +517,11 @@ class MysqlEngine:
                 group_id AS 对话分组id,
                 url_file_refs AS url_file_refs,
                 url_refs AS url_refs
-            FROM 
+            FROM
                 `kimi问答`) a
-            where 采集时间 >= "{}" and 采集时间 <= "{}";
-            """.format(start_date, end_date)
-        print(sql)
-        self.cursor.execute(sql)
+            where 采集时间 >= %s and 采集时间 <= %s;
+            """
+        self.cursor.execute(sql, (start_date, end_date))
         results = self.cursor.fetchall()
         # 抓换为DataFrame格式
         results = pd.DataFrame(results, columns=[

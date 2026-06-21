@@ -72,7 +72,7 @@ class TestTryDaemon(unittest.TestCase):
 
     def test_socket_connection_failure_returns_none(self):
         from speech2text import _try_daemon
-        with patch("speech2text._PUNCT_SOCKET", "/tmp/nonexistent-punct-test.sock"):
+        with patch("speech2text._PUNCT_PORT", 19999):  # unlikely to have a daemon on this port
             with patch("speech2text._start_daemon"):
                 result = _try_daemon("test")
                 self.assertIsNone(result)
@@ -224,44 +224,46 @@ class TestPunctDaemonIntegration(unittest.TestCase):
     def test_daemon_roundtrip(self):
         """Start daemon, send text, get punctuated result back."""
         import subprocess
-        from speech2text import _PUNCT_SOCKET
+        from speech2text import _PUNCT_HOST, _PUNCT_PORT
 
-        # Clean up stale socket
-        if os.path.exists(_PUNCT_SOCKET):
-            try:
-                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                s.connect(_PUNCT_SOCKET)
-                s.close()
-                # Daemon already running, use it
-            except (ConnectionRefusedError, FileNotFoundError):
-                os.unlink(_PUNCT_SOCKET)
+        test_port = _PUNCT_PORT + 1  # avoid conflict with any running daemon
+
+        # Check if something already on test_port
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((_PUNCT_HOST, test_port))
+            s.close()
+            self.skipTest(f"Port {test_port} already in use")
+        except (ConnectionRefusedError, OSError):
+            pass
 
         # Start daemon
         daemon_script = str(BILI2TEXT_DIR / "punct_daemon.py")
         proc = subprocess.Popen(
-            [sys.executable, daemon_script, "--socket", _PUNCT_SOCKET],
+            [sys.executable, daemon_script, "--port", str(test_port)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
 
         try:
-            # Wait for daemon to be ready (poll socket)
+            # Wait for daemon to be ready (poll TCP)
             for _ in range(120):
                 time.sleep(1)
                 try:
-                    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.settimeout(1)
-                    s.connect(_PUNCT_SOCKET)
+                    s.connect((_PUNCT_HOST, test_port))
                     s.close()
                     break
-                except (ConnectionRefusedError, FileNotFoundError):
+                except (ConnectionRefusedError, OSError):
                     continue
             else:
                 self.fail("Daemon did not start within 120s")
 
             # Send request
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(60)
-            s.connect(_PUNCT_SOCKET)
+            s.connect((_PUNCT_HOST, test_port))
             req = json.dumps({"text": "你好世界\n测试标点恢复"}) + "\n"
             s.sendall(req.encode("utf-8"))
 
@@ -281,11 +283,6 @@ class TestPunctDaemonIntegration(unittest.TestCase):
         finally:
             proc.terminate()
             proc.wait(timeout=10)
-            for f in [_PUNCT_SOCKET, _PUNCT_SOCKET + ".pid"]:
-                try:
-                    os.unlink(f)
-                except OSError:
-                    pass
 
 
 if __name__ == "__main__":

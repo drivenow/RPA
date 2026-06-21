@@ -1,4 +1,7 @@
-from moviepy import VideoFileClip
+try:
+    from moviepy import VideoFileClip
+except:
+    from moviepy.editor import VideoFileClip
 from pydub import AudioSegment
 import os
 import numpy as np

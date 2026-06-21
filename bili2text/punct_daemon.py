@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""标点恢复 daemon — 加载一次 FunASR ct-punc 模型，通过 Unix socket 处理多次请求。
+"""标点恢复 daemon — 加载一次 FunASR ct-punc 模型，通过 TCP socket 处理多次请求。
 
 用法:
-    python3 punct_daemon.py [--socket /tmp/openclaw-punct.sock]
+    python3 punct_daemon.py [--port 19832]
 
-客户端（restore_punctuation）会自动启动此 daemon 并通过 socket 通信。
+客户端（restore_punctuation）会自动启动此 daemon 并通过 TCP 通信。
+使用 TCP localhost 替代 Unix socket，兼容 Windows / macOS / Linux。
 """
 
 import json
@@ -14,10 +15,8 @@ import socket
 import sys
 import threading
 
-SOCKET_PATH = os.environ.get(
-    "OPENCLAW_PUNCT_SOCKET",
-    os.path.join(os.environ.get("TMPDIR", "/tmp"), "openclaw-punct.sock"),
-)
+PUNCT_HOST = os.environ.get("OPENCLAW_PUNCT_HOST", "127.0.0.1")
+PUNCT_PORT = int(os.environ.get("OPENCLAW_PUNCT_PORT", "19832"))
 
 _model = None
 _model_lock = threading.Lock()
@@ -104,51 +103,40 @@ def _handle_client(conn: socket.socket):
 
 
 def main():
-    socket_path = SOCKET_PATH
-    if len(sys.argv) > 2 and sys.argv[1] == "--socket":
-        socket_path = sys.argv[2]
+    host = PUNCT_HOST
+    port = PUNCT_PORT
+    if len(sys.argv) > 2 and sys.argv[1] == "--port":
+        port = int(sys.argv[2])
 
-    # Clean up stale socket
-    if os.path.exists(socket_path):
-        try:
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.connect(socket_path)
-            s.close()
-            # Daemon already running, exit
-            print(f"Daemon already running on {socket_path}", file=sys.stderr)
-            sys.exit(0)
-        except ConnectionRefusedError:
-            os.unlink(socket_path)
+    # Check if daemon already running on this port
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
+        s.connect((host, port))
+        s.close()
+        print(f"Daemon already running on {host}:{port}", file=sys.stderr)
+        sys.exit(0)
+    except (ConnectionRefusedError, OSError):
+        pass
 
-    # Bind and listen FIRST so clients can connect immediately
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    server.bind(socket_path)
+    # Bind and listen
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((host, port))
     server.listen(4)
 
-    pid_path = socket_path + ".pid"
-    with open(pid_path, "w") as f:
-        f.write(str(os.getpid()))
-
     # Graceful shutdown
-    def _cleanup(signum, frame):
+    def _cleanup(signum=None, frame=None):
         server.close()
-        try:
-            os.unlink(socket_path)
-        except OSError:
-            pass
-        try:
-            os.unlink(pid_path)
-        except OSError:
-            pass
         sys.exit(0)
 
-    signal.signal(signal.SIGTERM, _cleanup)
     signal.signal(signal.SIGINT, _cleanup)
+    signal.signal(signal.SIGTERM, _cleanup)
 
     # Preload model in background so socket is immediately available
     threading.Thread(target=_load_model, daemon=True).start()
 
-    print("ready", flush=True)
+    print(f"ready port={port}", flush=True)
 
     while True:
         try:
@@ -158,7 +146,7 @@ def main():
         except OSError:
             break
 
-    _cleanup(None, None)
+    _cleanup()
 
 
 if __name__ == "__main__":

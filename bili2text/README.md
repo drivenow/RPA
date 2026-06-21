@@ -168,8 +168,8 @@ speech2text.py                    punct_daemon.py
   → inner.inference() 直调
 ```
 
-- **daemon**（`punct_daemon.py`）：常驻进程，模型加载一次，通过 Unix socket 响应多次请求
-- **socket 路径**：`$TMPDIR/openclaw-punct.sock`（可由 `OPENCLAW_PUNCT_SOCKET` 覆盖）
+- **daemon**（`punct_daemon.py`）：常驻进程，模型加载一次，通过 TCP localhost 响应多次请求（兼容 Windows / macOS / Linux）
+- **监听地址**：`127.0.0.1:19832`（可由 `OPENCLAW_PUNCT_HOST` / `OPENCLAW_PUNCT_PORT` 覆盖）
 - **自动启动**：`restore_punctuation()` 首次调用时自动启动 daemon；OpenClaw 插件 `register()` 也会预热
 - **fallback**：daemon 不可用时回退到进程内加载（仍用 `inference()` 直调，只是多了模型加载时间）
 
@@ -178,7 +178,7 @@ speech2text.py                    punct_daemon.py
 | 文件 | 职责 |
 |------|------|
 | `speech2text.py` | `restore_punctuation()` 入口，daemon 客户端 + fallback |
-| `punct_daemon.py` | 标点恢复 daemon，Unix socket 服务 |
+| `punct_daemon.py` | 标点恢复 daemon，TCP localhost 服务 |
 | `main.py` | `BiliSpeechPipeline.process_job()` 字幕路径调用 `restore_punctuation()` |
 | `test/test_punct_restore.py` | 单元测试 + 集成测试 |
 
@@ -186,7 +186,8 @@ speech2text.py                    punct_daemon.py
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `OPENCLAW_PUNCT_SOCKET` | `$TMPDIR/openclaw-punct.sock` | daemon Unix socket 路径 |
+| `OPENCLAW_PUNCT_HOST` | `127.0.0.1` | daemon 监听地址 |
+| `OPENCLAW_PUNCT_PORT` | `19832` | daemon 监听端口 |
 
 ### 测试
 

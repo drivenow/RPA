@@ -1,0 +1,4 @@
+interface:
+  display_name: "WeChat RPA Workflow"
+  short_description: "WeChat public account capture and processing"
+  default_prompt: "Use $wechat-rpa-workflow to run the WeChat public-account collection and post-processing workflow."

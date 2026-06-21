@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import contextlib
+import traceback
 import requests
 from retrying import retry
 from tqdm import tqdm
@@ -16,20 +17,19 @@ AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 DEFAULT_SILICONFLOW_API_KEY = "sk-vwoalamuqgjixnzqxeeegrgwysiutayvbgscvakwiqqyauof"
 
 # ---- 标点恢复：daemon + fallback ----
-_PUNCT_SOCKET = os.environ.get(
-    "OPENCLAW_PUNCT_SOCKET",
-    os.path.join(os.environ.get("TMPDIR", "/tmp"), "openclaw-punct.sock"),
-)
+# 使用 TCP localhost 替代 Unix socket，兼容 Windows / macOS / Linux
+_PUNCT_HOST = os.environ.get("OPENCLAW_PUNCT_HOST", "127.0.0.1")
+_PUNCT_PORT = int(os.environ.get("OPENCLAW_PUNCT_PORT", "19832"))
 _punct_model = None  # fallback: in-process model
 
 
 def _try_daemon(text: str) -> str | None:
-    """Try sending text to punct_daemon via Unix socket. Returns None on failure."""
+    """Try sending text to punct_daemon via TCP. Returns None on failure."""
     for attempt in range(2):
         try:
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(300)
-            s.connect(_PUNCT_SOCKET)
+            s.connect((_PUNCT_HOST, _PUNCT_PORT))
             req = json.dumps({"text": text}, ensure_ascii=False) + "\n"
             s.sendall(req.encode("utf-8"))
             buf = b""
@@ -45,11 +45,13 @@ def _try_daemon(text: str) -> str | None:
             if "error" in resp:
                 return None
             return resp.get("text")
-        except (ConnectionRefusedError, FileNotFoundError, OSError):
+        except (ConnectionRefusedError, OSError) as exc:
             if attempt == 0:
                 # Try starting the daemon
+                print(f"[PUNCT-WARN] daemon unavailable, trying to start it: {type(exc).__name__}: {exc}")
                 _start_daemon()
                 continue
+            print(f"[PUNCT-WARN] daemon unavailable after retry: {type(exc).__name__}: {exc}")
             return None
     return None
 
@@ -60,32 +62,37 @@ def _start_daemon():
     if not os.path.exists(daemon_script):
         return
     try:
+        # Windows: 不使用 start_new_session，避免产生无法关闭的后台进程
+        kwargs = {}
+        if sys.platform != "win32":
+            kwargs["start_new_session"] = True
         subprocess.Popen(
-            [sys.executable or "python3", daemon_script, "--socket", _PUNCT_SOCKET],
+            [sys.executable or "python3", daemon_script, "--port", str(_PUNCT_PORT)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,
+            **kwargs,
         )
-        # Poll socket — daemon binds after model load (~45s first time)
+        # Poll TCP — daemon binds after model load (~45s first time)
         import time
         for _ in range(120):  # up to 120s
             time.sleep(1)
             try:
-                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout(1)
-                s.connect(_PUNCT_SOCKET)
+                s.connect((_PUNCT_HOST, _PUNCT_PORT))
                 s.close()
                 return  # daemon is ready
-            except (ConnectionRefusedError, FileNotFoundError):
+            except (ConnectionRefusedError, OSError):
                 continue
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[PUNCT-WARN] failed to start daemon: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
 
 
 def restore_punctuation(text: str) -> str:
     """使用 FunASR ct-punc 模型为无标点文本恢复标点符号。
 
-    优先通过 Unix socket 连接常驻 daemon（模型已预加载，响应快）。
+    优先通过 TCP 连接常驻 daemon（模型已预加载，响应快）。
     Daemon 未运行时自动启动；启动失败则回退到进程内直接加载。
     """
     if not text or not text.strip():
@@ -101,11 +108,25 @@ def restore_punctuation(text: str) -> str:
 
     global _punct_model
     if _punct_model is None:
-        from funasr import AutoModel
-        print("正在加载标点恢复模型 FunASR ct-punc ...")
-        with _suppress_output():
-            _punct_model = AutoModel(model="ct-punc", disable_update=True)
-        print("标点恢复模型加载完成。")
+        try:
+            import ssl
+            ssl._create_default_https_context = ssl._create_unverified_context
+            from funasr import AutoModel
+            print("正在加载标点恢复模型 FunASR ct-punc ...")
+            with _suppress_output():
+                # 优先使用本地缓存路径，避免 SSL 证书问题
+                _local_model = os.path.join(
+                    os.path.expanduser("~"),
+                    ".cache", "modelscope", "hub", "models", "iic",
+                    "punc_ct-transformer_cn-en-common-vocab471067-large",
+                )
+                _model_path = _local_model if os.path.isdir(_local_model) else "ct-punc"
+                _punct_model = AutoModel(model=_model_path, disable_update=True)
+            print("标点恢复模型加载完成。")
+        except Exception as exc:
+            print(f"[PUNCT-ERROR] FunASR 标点模型加载失败: {type(exc).__name__}: {exc}")
+            traceback.print_exc()
+            raise
 
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
     if not paragraphs:
@@ -115,11 +136,16 @@ def restore_punctuation(text: str) -> str:
     inner = _punct_model.model
     inner.eval()
     restored = []
-    with torch.no_grad():
-        for para in paragraphs:
-            res = inner.inference(data_in=[para], key=["p"], **_punct_model.kwargs)
-            results = res[0] if isinstance(res, (list, tuple)) else res
-            restored.append(results[0]["text"])
+    try:
+        with torch.no_grad():
+            for para in paragraphs:
+                res = inner.inference(data_in=[para], key=["p"], **_punct_model.kwargs)
+                results = res[0] if isinstance(res, (list, tuple)) else res
+                restored.append(results[0]["text"])
+    except Exception as exc:
+        print(f"[PUNCT-ERROR] FunASR 标点推理失败: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+        raise
     return "\n".join(restored)
 
 
@@ -227,7 +253,7 @@ def _transcribe_groq(audio_path: str, api_key: str = None) -> str:
             url,
         ]
 
-        result = subprocess.run(args, capture_output=True, text=True, timeout=130)
+        result = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=130)
         if result.returncode != 0:
             raise RuntimeError(f"Groq curl transcription failed: {result.stderr[:500]}")
 
@@ -284,7 +310,7 @@ def _transcribe_siliconflow(audio_path: str, api_key: str = None) -> str:
             url,
         ]
 
-        result = subprocess.run(args, capture_output=True, text=True, timeout=311)
+        result = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=311)
         if result.returncode != 0:
             raise RuntimeError(f"SiliconFlow curl transcription failed: {result.stderr[:500]}")
 
@@ -365,7 +391,6 @@ def run_speech_to_text(
             raise e
 
     combined = "\n".join(text for text in transcripts if text)
-    print(combined)
 
     punctuation_count = sum(combined.count(mark) for mark in (",", "，", "。", ".", "！", "？"))
     if punctuation_count < 3 and len(combined) > 50:

@@ -76,6 +76,7 @@ test-results/
 *.log
 logs/
 *.tmp
+*.bak
 tmp/
 temp/
 *.pid
@@ -97,6 +98,11 @@ video_output/
 yt-dlp.exe
 yt-dlp
 
+# RPA runtime state
+src/tools_browser/state/*.json
+!src/tools_browser/state/*.example.json
+bili2text/batch_state.json
+
 # Cookies / credentials
 *cookies*.txt
 *cookies*.json
@@ -104,6 +110,14 @@ bili_cookies.txt2
 *.pem
 *.key
 *.crt
+
+# Excel lock files (filelock)
+*.xlsx.lock
+*.xls.lock
+
+# JSONL dumps from RPA runs
+src/tools_browser/tmp/
+src/tools_crawl/captured_data/
 
 # Generated visualizations
 function_call_graph.html

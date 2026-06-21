@@ -114,6 +114,7 @@ def _bili_ytdlp_network_args():
         "--retries", "20",
         "--fragment-retries", "20",
         "--extractor-retries", "5",
+        "--no-check-certificates",
     ]
 
 
