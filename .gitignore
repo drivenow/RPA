@@ -103,6 +103,12 @@ src/tools_browser/state/*.json
 !src/tools_browser/state/*.example.json
 bili2text/batch_state.json
 
+# Diagnostic run scripts & logs (test/)
+bili2text/test/run_*.bat
+bili2text/test/run_*.ps1
+bili2text/test/*.log
+bili2text/test/*.log.err
+
 # Cookies / credentials
 *cookies*.txt
 *cookies*.json
@@ -130,3 +136,4 @@ temp_to_compact/
 tt.py
 legancy/
 playwright/
+bili2text/batch_transcribe.log.err
